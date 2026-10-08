@@ -1,0 +1,16 @@
+{
+  "name": "Horizon Render",
+  "short_name": "Horizon Render",
+  "description": "Mostra al cliente la sua attività con l'insegna LED già montata e accesa.",
+  "lang": "it",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1D0718",
+  "theme_color": "#1D0718",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

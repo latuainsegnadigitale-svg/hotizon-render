@@ -1,0 +1,6 @@
+# Horizon Render — configurazione Netlify
+# Il sito è statico (cartella "public"); la funzione "gate" (netlify/edge-functions)
+# gestisce la ricerca online.
+[build]
+  publish = "public"
+  command = "echo Nessuna build necessaria"

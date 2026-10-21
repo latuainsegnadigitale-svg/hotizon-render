@@ -418,8 +418,8 @@ const CM_MIN = 20, CM_MAX = 600;
 // Passo LED in millimetri: distanza tra due LED. Da qui si calcola la risoluzione del pannello.
 const PITCHES = [2.5, 3, 3.91, 4.81, 6.67, 10];
 const DEFAULT_PITCH = 3.91;
-// Indirizzo di Horizon Offers. Se su Netlify il sito ha un altro nome, cambia solo questa riga.
-const OFFERS_URL = 'https://horizon-offers.netlify.app/';
+// Indirizzo di Horizon Offers su Cloudflare. Se il sito ha un altro indirizzo, cambia solo questa riga.
+const OFFERS_URL = 'https://horizon-offers.tolvepaolo6.workers.dev/';
 // Collegamento a Horizon Offers con le misure dell'insegna (e interno/esterno quando la struttura lo dice)
 function offersLink(p){
   const c = panelCm(p), st = (p.site && p.site.structure) || 'none';
@@ -451,7 +451,7 @@ const FPS = 25;
 const PHOTO_MAX_SIDE = 1400;    // foto dello spot
 const SITE_MAX_SIDE = 2400;     // foto dell'attività
 const VIDEO_MAX_MB = 80;
-// Ricerca online: passa dal server del sito (funzione "gate" su Netlify), che aggiunge le chiavi API.
+// Ricerca online: passa dal server del sito (worker.js su Cloudflare), che aggiunge le chiavi API.
 const PX_API = '/api/search', PX_MEDIA = '/api/px-media', PX_TRACK = '/api/track';
 const SOURCES = { pixabay:'Pixabay', pexels:'Pexels', unsplash:'Unsplash' };
 const PX_CACHE_MS = 24*60*60*1000;

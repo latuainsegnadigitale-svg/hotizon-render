@@ -24,10 +24,20 @@ function json(obj, status){ return new Response(JSON.stringify(obj), { status, h
 /* ---------- librerie gratuite ---------- */
 const PER = 12;
 const MEDIA_HOSTS = /(^|\.)(pixabay\.com|pexels\.com|unsplash\.com|vimeo\.com|vimeocdn\.com)$/;
-async function getJSON(u, headers){
+async function getJSONOnce(u, headers){
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 8000);
   try { const r = await fetch(u, { headers: headers || {}, signal: ac.signal }); if (!r.ok) return { err: r.status }; return { data: await r.json() }; }
   catch (e){ return { err: 'net' }; } finally { clearTimeout(t); }
+}
+// Se la libreria risponde "troppe richieste" (429), riprova da sola dopo una breve pausa.
+async function getJSON(u, headers){
+  let r = await getJSONOnce(u, headers);
+  for (const wait of [700, 1600]){
+    if (r.err !== 429) break;
+    await new Promise(ok => setTimeout(ok, wait));
+    r = await getJSONOnce(u, headers);
+  }
+  return r;
 }
 async function searchPixabay(q, page, kind, orient){
   const key = env('PIXABAY_KEY'); if (!key) return null;

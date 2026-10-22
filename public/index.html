@@ -282,6 +282,9 @@ a.btn{box-sizing:border-box;}
 .crop-stage canvas.static{cursor:default;}
 .crop-actions{display:flex;gap:8px;align-items:center;margin-top:12px;}
 .crop-spacer{flex:1;}
+.se-ratios{margin-top:10px;}
+.se-ratios .pill{padding:6px 12px;font-size:.82rem;}
+.se-tools{display:flex;gap:8px;justify-content:center;margin:6px 0 4px;}
 .panel h2 .opt{font-weight:500;font-size:.78rem;color:var(--dim);margin-left:6px;}
 .btn-row.tight{margin:0;}
 .warn-text{color:var(--warn-ink);}
@@ -2369,6 +2372,131 @@ function openStructureSheet(onDone){
   $('#sheet-x').onclick = () => { if (!site.structure){ site.structure = 'none'; touch(); } finish(); };
   $$('.struct-card', modalRoot).forEach(b => b.onclick = () => { site.structure = b.dataset.v; site.ground = null; site.top = null; touch(); finish(); });
 }
+/* ---------- Foto dell'attività: taglia e sistema (ritaglio libero, rotazione, raddrizza) ---------- */
+// Disegna la foto originale ruotata (a scatti di 90° + angolo fine) e ingrandita quanto basta per non lasciare angoli vuoti.
+function siteWork(img, rot, ang, maxSide){
+  const iw = img.naturalWidth, ih = img.naturalHeight, sw = rot % 2 === 1;
+  const w0 = sw ? ih : iw, h0 = sw ? iw : ih, k = Math.min(1, maxSide / Math.max(w0, h0));
+  const W = Math.max(1, Math.round(w0*k)), H = Math.max(1, Math.round(h0*k)), c = makeCanvas(W, H), x = c.getContext('2d');
+  const t = Math.abs(ang)*Math.PI/180, co = Math.cos(t), si = Math.sin(t);
+  const cover = Math.max((W*co + H*si)/W, (W*si + H*co)/H);
+  x.imageSmoothingQuality = 'high'; x.translate(W/2, H/2); x.rotate(rot*Math.PI/2 + ang*Math.PI/180); x.scale(cover, cover);
+  x.drawImage(img, -iw*k/2, -ih*k/2, iw*k, ih*k);
+  return c;
+}
+const SITE_RATIOS = [{ id:'free', label:'Libero' }, { id:'orig', label:'Come la foto' }, { id:'16:9', label:'16:9', r:16/9 }, { id:'4:3', label:'4:3', r:4/3 }, { id:'1:1', label:'1:1', r:1 }, { id:'3:4', label:'3:4', r:3/4 }, { id:'9:16', label:'9:16', r:9/16 }];
+async function openSiteEdit(onDone){
+  const site = project.site; if (!site || !site.photo) return;
+  const src = site.orig || site.photo, img = await loadImg(src); if (!img){ toast('Non riesco ad aprire la foto.'); return; }
+  const e0 = site.edit || {};
+  let rot = e0.rot || 0, ang = e0.ang || 0, ratioId = e0.ratio || 'free', work = null, WW = 0, WH = 0, R = null;
+  const startCrop = e0.crop || null;
+  const ratioOf = () => { const r = SITE_RATIOS.find(x => x.id === ratioId); return ratioId === 'orig' ? WW/WH : r && r.r ? r.r : null; };
+  const minS = () => Math.max(24, Math.min(WW, WH)*.1);
+  const fitRatio = (cx, cy, w, h) => {   // il riquadro più grande con le proporzioni scelte, centrato
+    const r = ratioOf(); if (r){ if (w/h > r) w = h*r; else h = w/r; }
+    w = Math.min(w, WW); h = Math.min(h, WH);
+    return { x: clamp(cx - w/2, 0, WW - w), y: clamp(cy - h/2, 0, WH - h), w, h };
+  };
+  const fullRect = () => fitRatio(WW/2, WH/2, WW, WH);
+  const rebuild = keep => {
+    const prev = R && WW ? { x: R.x/WW, y: R.y/WH, w: R.w/WW, h: R.h/WH } : null;
+    work = siteWork(img, rot, ang, 1100); WW = work.width; WH = work.height;
+    if (keep && prev) R = fitRatio((prev.x + prev.w/2)*WW, (prev.y + prev.h/2)*WH, prev.w*WW, prev.h*WH);
+    else R = fullRect();
+  };
+  modalRoot.innerHTML = '<div class="overlay sheet-overlay" id="se-ov"><div class="sheet crop-sheet" role="dialog" aria-modal="true" aria-label="Taglia e sistema la foto"><div class="sheet-head"><h3>Taglia e sistema la foto</h3><button class="icon-btn" id="se-x" aria-label="Chiudi">✕</button></div>' +
+    '<div class="pills se-ratios" id="se-ratio">' + SITE_RATIOS.map(r => '<button type="button" class="pill" data-v="' + r.id + '">' + r.label + '</button>').join('') + '</div>' +
+    '<div class="crop-stage" id="se-stage"><canvas id="se-cv"></canvas></div>' +
+    '<p class="hint small center" id="se-hint">Trascina gli angoli o i lati per tagliare, il riquadro per spostarlo.</p>' +
+    '<div class="se-tools"><button type="button" class="btn btn-secondary btn-sm" id="se-rl" aria-label="Ruota a sinistra">↺ Ruota</button><button type="button" class="btn btn-secondary btn-sm" id="se-rr" aria-label="Ruota a destra">Ruota ↻</button></div>' +
+    '<p class="lbl">Raddrizza</p><div class="range-row"><input type="range" id="se-ang" min="-15" max="15" step="0.5" value="' + ang + '" aria-label="Raddrizza la foto"><output id="se-ang-v"></output></div>' +
+    '<div class="crop-actions"><button type="button" class="btn btn-ghost btn-sm" id="se-reset">Ripristina</button><span class="crop-spacer"></span><button type="button" class="btn btn-secondary" id="se-cancel">Annulla</button><button type="button" class="btn btn-primary" id="se-ok">Applica</button></div></div></div>';
+  const stage = $('#se-stage'), cv = $('#se-cv'), ctx = cv.getContext('2d'), angIn = $('#se-ang'), angV = $('#se-ang-v');
+  const dpr = Math.min(2, window.devicePixelRatio || 1); let k = 1, PW = 0, PH = 0, sliding = false;
+  const layout = () => {
+    const availW = stage.clientWidth || 320, availH = Math.max(200, Math.min(window.innerHeight*.5, 520));
+    k = Math.min(availW/WW, availH/WH); const cw = WW*k, ch = WH*k;
+    cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; PW = Math.round(cw*dpr); PH = Math.round(ch*dpr); cv.width = PW; cv.height = PH;
+  };
+  const draw = () => {
+    const s2 = k*dpr; ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0, 0, PW, PH);
+    ctx.imageSmoothingQuality = 'high'; ctx.drawImage(work, 0, 0, PW, PH);
+    const x = R.x*s2, y = R.y*s2, w = R.w*s2, h = R.h*s2;
+    ctx.fillStyle = 'rgba(5,1,2,.62)'; ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.rect(x, y, w, h); ctx.fill('evenodd');
+    const n = sliding ? 8 : 3; ctx.strokeStyle = 'rgba(255,255,255,' + (sliding ? .45 : .35) + ')'; ctx.lineWidth = dpr;
+    ctx.beginPath(); for (let t = 1; t < n; t++){ ctx.moveTo(x + w*t/n, y); ctx.lineTo(x + w*t/n, y + h); ctx.moveTo(x, y + h*t/n); ctx.lineTo(x + w, y + h*t/n); } ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2*dpr; ctx.strokeRect(x, y, w, h);
+    const L = Math.min(18*dpr, w/4, h/4); ctx.lineWidth = 4*dpr; ctx.lineCap = 'round';
+    [[x, y, 1, 1], [x + w, y, -1, 1], [x + w, y + h, -1, -1], [x, y + h, 1, -1]].forEach(c => { ctx.beginPath(); ctx.moveTo(c[0] + c[2]*L, c[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0], c[1] + c[3]*L); ctx.stroke(); });
+    if (!ratioOf()){ const m = 12*dpr; ctx.lineWidth = 4*dpr; [[x + w/2 - m, y, x + w/2 + m, y], [x + w/2 - m, y + h, x + w/2 + m, y + h], [x, y + h/2 - m, x, y + h/2 + m], [x + w, y + h/2 - m, x + w, y + h/2 + m]].forEach(l => { ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke(); }); }
+  };
+  const setAngLabel = () => { angV.textContent = (ang > 0 ? '+' : '') + String(ang).replace('.', ',') + '°'; };
+  const setRatioUI = () => $$('#se-ratio .pill').forEach(b => b.classList.toggle('selected', b.dataset.v === ratioId));
+  rebuild(false);
+  if (startCrop) R = { x: startCrop.x*WW, y: startCrop.y*WH, w: startCrop.w*WW, h: startCrop.h*WH };
+  layout(); draw(); setAngLabel(); setRatioUI();
+
+  const toW = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left)/k, (e.clientY - r.top)/k]; };
+  let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    const pt = toW(e), tol = 26/k, r = R; try { cv.setPointerCapture(e.pointerId); } catch (_){}
+    const corners = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+    const ci = corners.findIndex(c => Math.hypot(c[0] - pt[0], c[1] - pt[1]) < tol);
+    if (ci > -1){ const o = corners[(ci + 2) % 4]; drag = { kind:'corner', ax:o[0], ay:o[1], sx: ci === 1 || ci === 2 ? 1 : -1, sy: ci >= 2 ? 1 : -1 }; return; }
+    if (!ratioOf()){
+      const inY = pt[1] > r.y && pt[1] < r.y + r.h, inX = pt[0] > r.x && pt[0] < r.x + r.w;
+      if (inY && Math.abs(pt[0] - r.x) < tol){ drag = { kind:'edge', e:'l' }; return; }
+      if (inY && Math.abs(pt[0] - r.x - r.w) < tol){ drag = { kind:'edge', e:'r' }; return; }
+      if (inX && Math.abs(pt[1] - r.y) < tol){ drag = { kind:'edge', e:'t' }; return; }
+      if (inX && Math.abs(pt[1] - r.y - r.h) < tol){ drag = { kind:'edge', e:'b' }; return; }
+    }
+    drag = { kind:'move', p0: pt, R0: Object.assign({}, R) };
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return; const pt = toW(e), m = minS(), r = ratioOf();
+    if (drag.kind === 'move') R = Object.assign({}, R, { x: clamp(drag.R0.x + pt[0] - drag.p0[0], 0, WW - R.w), y: clamp(drag.R0.y + pt[1] - drag.p0[1], 0, WH - R.h) });
+    else if (drag.kind === 'edge'){
+      const x2 = R.x + R.w, y2 = R.y + R.h;
+      if (drag.e === 'l'){ const nx = clamp(pt[0], 0, x2 - m); R = Object.assign({}, R, { x: nx, w: x2 - nx }); }
+      if (drag.e === 'r'){ const nx2 = clamp(pt[0], R.x + m, WW); R = Object.assign({}, R, { w: nx2 - R.x }); }
+      if (drag.e === 't'){ const ny = clamp(pt[1], 0, y2 - m); R = Object.assign({}, R, { y: ny, h: y2 - ny }); }
+      if (drag.e === 'b'){ const ny2 = clamp(pt[1], R.y + m, WH); R = Object.assign({}, R, { h: ny2 - R.y }); }
+    } else {
+      const availW = drag.sx > 0 ? WW - drag.ax : drag.ax, availH = drag.sy > 0 ? WH - drag.ay : drag.ay;
+      let w, h;
+      if (r){ w = clamp(Math.max(Math.abs(pt[0] - drag.ax), Math.abs(pt[1] - drag.ay)*r), m, Math.min(availW, availH*r)); h = w/r; }
+      else { w = clamp(Math.abs(pt[0] - drag.ax), m, availW); h = clamp(Math.abs(pt[1] - drag.ay), m, availH); }
+      R = { x: drag.sx > 0 ? drag.ax : drag.ax - w, y: drag.sy > 0 ? drag.ay : drag.ay - h, w, h };
+    }
+    draw();
+  });
+  const up = () => { drag = null; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  $$('#se-ratio .pill').forEach(b => b.onclick = () => { ratioId = b.dataset.v; setRatioUI(); R = fitRatio(R.x + R.w/2, R.y + R.h/2, R.w, R.h); if (ratioOf()) R = fullRect(); draw(); });
+  $('#se-rl').onclick = () => { rot = (rot + 3) % 4; rebuild(false); layout(); draw(); };
+  $('#se-rr').onclick = () => { rot = (rot + 1) % 4; rebuild(false); layout(); draw(); };
+  angIn.oninput = () => { ang = +angIn.value; sliding = true; setAngLabel(); rebuild(true); draw(); };
+  angIn.onchange = () => { sliding = false; draw(); };
+  $('#se-reset').onclick = () => { rot = 0; ang = 0; ratioId = 'free'; angIn.value = 0; setAngLabel(); setRatioUI(); rebuild(false); layout(); draw(); };
+  const close = () => { window.removeEventListener('resize', onResize); document.removeEventListener('keydown', onKey); closeModal(); };
+  const onResize = () => { layout(); draw(); }, onKey = e => { if (e.key === 'Escape') close(); };
+  window.addEventListener('resize', onResize); document.addEventListener('keydown', onKey);
+  $('#se-x').onclick = close; $('#se-cancel').onclick = close;
+  $('#se-ov').onclick = e => { if (e.target.id === 'se-ov') close(); };
+  $('#se-ok').onclick = async () => {
+    const crop = { x: R.x/WW, y: R.y/WH, w: R.w/WW, h: R.h/WH };
+    const untouched = rot === 0 && ang === 0 && crop.x < .002 && crop.y < .002 && crop.w > .996 && crop.h > .996;
+    const big = siteWork(img, rot, ang, SITE_MAX_SIDE), bw = big.width, bh = big.height;
+    const cx = Math.round(crop.x*bw), cy = Math.round(crop.y*bh), cw = Math.max(1, Math.round(crop.w*bw)), ch = Math.max(1, Math.round(crop.h*bh));
+    const out = makeCanvas(cw, ch); out.getContext('2d').drawImage(big, cx, cy, cw, ch, 0, 0, cw, ch);
+    site.orig = src; site.edit = untouched ? null : { rot, ang, ratio: ratioId, crop };
+    const prevPhoto = site.photo; site.photo = untouched ? src : out.toDataURL('image/jpeg', .9);
+    if (site.photo !== prevPhoto){ site.q = null; project.thumb = null; }
+    await loadImg(site.photo); touch(); await saveNow(); close();
+    if (onDone) onDone();
+  };
+}
 function siteUploadHTML(prefix){
   return '<div class="btn-row"><button class="btn btn-secondary btn-sm" id="' + prefix + '-cam">Scatta una foto</button><button class="btn btn-secondary btn-sm" id="' + prefix + '-gal">Scegli dalla galleria</button></div>' +
     '<input type="file" id="' + prefix + '-cam-in" accept="image/*" capture="environment" hidden><input type="file" id="' + prefix + '-gal-in" accept="image/*" hidden>';
@@ -2379,7 +2507,8 @@ function bindSiteUpload(prefix){
     const file = e.target.files[0]; if (!file) return;
     try {
       const res = await importImage(file, SITE_MAX_SIDE, 'image/jpeg', .9);
-      p.site.photo = res.dataUrl; p.site.q = null; p.thumb = null; await loadImg(p.site.photo); touch(); await saveNow(); go('place');
+      p.site.photo = res.dataUrl; p.site.orig = res.dataUrl; p.site.edit = null; p.site.q = null; p.thumb = null; await loadImg(p.site.photo); touch(); await saveNow();
+      await go('place'); openSiteEdit(() => go('place'));   // appena caricata: subito la possibilità di tagliarla e sistemarla
     } catch (err){ toast('Non riesco a leggere questa foto. Prova con un JPG o PNG.'); }
   };
   $('#' + prefix + '-cam').onclick = () => $('#' + prefix + '-cam-in').click();
@@ -2410,10 +2539,11 @@ async function renderPlace(){
     '<section class="panel"><h2>Struttura</h2><div class="choice-row"><span class="choice-ico">' + structIcon(stId) + '</span><div class="choice-val"><strong>' + stDef.label + '</strong><small>' + stDef.hint + '</small></div><button type="button" class="btn btn-secondary btn-sm" id="st-pick">Cambia</button></div>' +
     (needGround ? '<p class="lbl">Colore della struttura</p><div class="pills" id="scol">' + STRUCT_COLORS.map(k => '<button type="button" class="pill pill-dot' + ((site.color || 'black') === k.id ? ' selected' : '') + '" data-v="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.label + '</button>').join('') + '</div>' : '') +
     (needGround ? '<p class="hint small">Trascina il rombo viola fino al punto in cui la struttura tocca terra.</p>' : needTop ? '<p class="hint small">Trascina il rombo viola fino al soffitto o al punto in cui si agganciano i cavi.</p>' : '') + '</section>' +
-    '<section class="panel"><h2>Foto dell\'attività</h2><p class="hint">Cambiandola dovrai riposizionare l\'insegna.</p>' + siteUploadHTML('re') + '</section>' +
+    '<section class="panel"><h2>Foto dell\'attività</h2><p class="hint">Se la tagli, la ruoti o la cambi dovrai riposizionare l\'insegna.</p><div class="btn-row"><button class="btn btn-secondary btn-sm" id="se-open">' + CROP_SVG + 'Taglia e sistema</button></div>' + siteUploadHTML('re') + '</section>' +
     '<div class="actionbar"><button class="btn btn-primary btn-block" id="next"' + (site.q ? '' : ' disabled') + '>Continua: guarda il render</button></div>';
   bindTopbar(async () => { await saveNow(); go('review'); });
   bindSiteUpload('re');
+  $('#se-open').onclick = () => openSiteEdit(() => go('place'));
 
   // dimensioni del disegno
   const wrap = $('#pwrap'), cv = $('#pc'), ctx = cv.getContext('2d');

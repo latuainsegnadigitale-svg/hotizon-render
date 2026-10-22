@@ -82,7 +82,7 @@ async function searchAll(q, page, kind, orient){
   const all = (await Promise.all([searchPixabay, searchPexels, searchUnsplash].map(fn => fn(q, page, kind, orient)))).filter(Boolean);
   const lists = all.map(r => r.hits); const hits = [];
   for (let i = 0; lists.some(l => i < l.length); i++) lists.forEach(l => { if (i < l.length) hits.push(l[i]); });
-  return { hits, more: all.some(r => r.more), tried: all.length, failed: all.filter(r => r.err).length, rate: all.some(r => r.err === 429 || r.err === 403) };
+  return { hits, more: all.some(r => r.more), tried: all.length, failed: all.filter(r => r.err).length, rate: all.some(r => r.err === 429 || r.err === 403), codes: all.map(r => r.err || 'ok') };
 }
 
 async function handleApi(request){
@@ -103,7 +103,7 @@ async function handleApi(request){
       const o = url.searchParams.get('orient'); const orient = o === 'h' || o === 'v' ? o : '';
       let res = await searchAll(q, page, kind, orient);
       if (orient && page === 1 && !res.hits.length) res = await searchAll(q, page, kind, ''); // riprova senza orientamento
-      if (!res.hits.length && res.tried && res.failed === res.tried) return json({ error:'upstream' }, res.rate ? 429 : 502);
+      if (!res.hits.length && res.tried && res.failed === res.tried) return json({ error:'upstream', codes: res.codes }, res.rate ? 429 : 502);
       return new Response(JSON.stringify({ hits: res.hits, more: res.more }), { status: 200, headers: { 'Content-Type':'application/json', 'Cache-Control':'private, max-age=86400' } });
     }
     // Unsplash chiede di segnalare ogni foto effettivamente usata.

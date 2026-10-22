@@ -11,6 +11,7 @@
 //   UNSPLASH_KEY   la "Access Key" di Unsplash  (solo foto)      facoltativa
 
 let ENV = {};
+let LAST_ERR = '';
 const env = (k) => (ENV && ENV[k]) || '';
 
 // Le ricerche si accettano solo dalle pagine del sito stesso (non da altri siti).
@@ -26,7 +27,7 @@ const PER = 12;
 const MEDIA_HOSTS = /(^|\.)(pixabay\.com|pexels\.com|unsplash\.com|vimeo\.com|vimeocdn\.com)$/;
 async function getJSONOnce(u, headers){
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 8000);
-  try { const r = await fetch(u, { headers: headers || {}, signal: ac.signal }); if (!r.ok) return { err: r.status }; return { data: await r.json() }; }
+  try { const r = await fetch(u, { headers: Object.assign({ 'User-Agent': 'HorizonTeam/1.0 (sito per insegne LED)', 'Accept': 'application/json' }, headers || {}), signal: ac.signal }); if (!r.ok){ LAST_ERR = r.status + ':' + (r.headers.get('x-ratelimit-remaining') || '-') + ':' + (r.headers.get('retry-after') || r.headers.get('x-ratelimit-reset') || '-') + ':' + (r.headers.get('server') || '-'); return { err: r.status }; } return { data: await r.json() }; }
   catch (e){ return { err: 'net' }; } finally { clearTimeout(t); }
 }
 // Se la libreria risponde "troppe richieste" (429), riprova da sola dopo una breve pausa.
@@ -113,7 +114,7 @@ async function handleApi(request){
       const o = url.searchParams.get('orient'); const orient = o === 'h' || o === 'v' ? o : '';
       let res = await searchAll(q, page, kind, orient);
       if (orient && page === 1 && !res.hits.length) res = await searchAll(q, page, kind, ''); // riprova senza orientamento
-      if (!res.hits.length && res.tried && res.failed === res.tried) return json({ error:'upstream', codes: res.codes }, res.rate ? 429 : 502);
+      if (!res.hits.length && res.tried && res.failed === res.tried) return json({ error:'upstream', codes: res.codes, info: LAST_ERR }, res.rate ? 429 : 502);
       return new Response(JSON.stringify({ hits: res.hits, more: res.more }), { status: 200, headers: { 'Content-Type':'application/json', 'Cache-Control':'private, max-age=86400' } });
     }
     // Unsplash chiede di segnalare ogni foto effettivamente usata.

@@ -910,8 +910,21 @@ function timeline(p){
   if (hasOutro(p)) segs.push({ type:'outro', start:t, dur:OUTRO, trans:p.outroTrans || 'fade' });
   return segs;
 }
+// Testo a scorrimento continuo: se più foto di fila hanno lo stesso testo, la fascia non riparte da capo
+// a ogni cambio foto ma prosegue col tempo dello spot, e durante la transizione resta ferma sopra le due foto.
+let tkNow = null, tkHide = false;
+function tickerKey(s){ const t = s && (s.ticker || '').trim(); return t ? t + '\u0000' + (s.tkDir || 'left') : ''; }
+function tickerRunStart(segs, seg){
+  let j = segs.indexOf(seg); const k = tickerKey(seg.slide);
+  while (j > 0 && segs[j-1].type === 'slide' && tickerKey(segs[j-1].slide) === k) j--;
+  return segs[j].start;
+}
 function renderAt(ctx, W, H, t, p, segs){
   segs = segs || timeline(p);
+  tkNow = { t: clamp(t, 0, Math.max(0, p.duration - 1e-4)), segs };
+  try { renderAtInner(ctx, W, H, t, p, segs); } finally { tkNow = null; }
+}
+function renderAtInner(ctx, W, H, t, p, segs){
   if (!segs.length){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); return; }
   t = clamp(t, 0, p.duration - 1e-4);
   let i = segs.findIndex(s => t >= s.start && t < s.start + s.dur); if (i < 0) i = segs.length - 1;
@@ -922,12 +935,22 @@ function renderAt(ctx, W, H, t, p, segs){
 }
 function renderTrans(ctx, W, H, a, b, t, p, prog){
   sizeBuf(bufA, W, H); sizeBuf(bufB, W, H);
-  drawSeg(bufA.getContext('2d'), W, H, a, t - a.start, p);
-  drawSeg(bufB.getContext('2d'), W, H, b, t - b.start, p);
+  const keepTk = a.type === 'slide' && b.type === 'slide' && !!tickerKey(a.slide) && tickerKey(a.slide) === tickerKey(b.slide);
+  tkHide = keepTk;
+  try {
+    drawSeg(bufA.getContext('2d'), W, H, a, t - a.start, p);
+    drawSeg(bufB.getContext('2d'), W, H, b, t - b.start, p);
+  } finally { tkHide = false; }
   const fn = TRANS_FN[b.trans] || TRANS_FN.fade;
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   fn(ctx, bufA, bufB, easeInOut(clamp(prog, 0, 1)), W, H);
   ctx.restore();
+  if (keepTk){
+    const ts = prog < .5 ? a : b;
+    ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1;
+    drawTicker(ctx, W, H, ts.slide, t - ts.start, p);
+    ctx.restore();
+  }
 }
 function drawSeg(ctx, W, H, seg, lt, p){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1;
@@ -1022,7 +1045,7 @@ function drawSlide(ctx, W, H, s, lt, dur, i, p){
   if (img) drawPhoto(ctx, W, H, img, s, i, clamp((lt + TR/2) / (dur + TR), 0, 1));
   drawSlideLogo(ctx, W, H, s, lt, p);
   drawTexts(ctx, W, H, s, lt, p, dur);
-  drawTicker(ctx, W, H, s, lt, p);
+  if (!tkHide) drawTicker(ctx, W, H, s, lt, p);
 }
 // Logo dentro la foto: grandezza libera (size = lato lungo del logo, in quota del lato corto dello spot), posizione col dito.
 const logoBox = new Map(), tickerBox = new Map();
@@ -1060,7 +1083,9 @@ function drawTicker(ctx, W, H, s, lt, p){
   ctx.beginPath(); ctx.rect(0, m.y0, W, m.bh); ctx.clip();
   ctx.font = fontCss(p, m.px); ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF';
   const unit = text + '     \u2022     ', uw = Math.max(1, ctx.measureText(unit).width), y = m.y0 + m.bh/2 + hair/2;
-  const off = (W / 5.5) * Math.max(0, lt + TR/2);   // attraversa lo schermo in circa 5,5 secondi
+  let el = lt + TR/2;
+  if (tkNow){ const seg = tkNow.segs.find(x => x.type === 'slide' && x.slide === s); if (seg) el = tkNow.t - tickerRunStart(tkNow.segs, seg) + TR/2; }
+  const off = (W / 5.5) * Math.max(0, el);   // attraversa lo schermo in circa 5,5 secondi, senza ripartire al cambio foto
   if (s.tkDir === 'right'){
     let x = off - uw; if (x > W) x -= Math.floor((x - W)/uw + 1)*uw;
     for (; x > -uw; x -= uw) ctx.fillText(unit, x, y);

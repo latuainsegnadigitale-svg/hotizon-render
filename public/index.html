@@ -443,6 +443,74 @@ details.more .bx-card{background:var(--fill);}
 .se-ratios{justify-content:center;}
 .se-tools{display:flex;gap:8px;justify-content:center;}
 .crop-sheet{gap:12px;}
+/* =====================================================================
+   VERSIONE PC — stesso sito del telefono. Con il mouse cambiano solo alcune parole e si possono
+   trascinare i file; sugli schermi larghi (html.desk) l'anteprima va a sinistra, grande, e i comandi a destra.
+   ===================================================================== */
+.drop-ov{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:24px;background:var(--scrim);pointer-events:none;}
+.drop-ov span{display:flex;align-items:center;gap:12px;padding:28px 36px;border-radius:24px;border:3px dashed var(--fg);background:var(--bg);color:var(--fg);font-size:22px;font-weight:700;letter-spacing:-.3px;}
+.drop-ov svg{stroke:currentColor;}
+html.dropping .drop-ov{display:flex;}
+/* con il mouse: niente tasto fotocamera (dal computer apre comunque la scelta dei file) */
+html.pc .choice[for$="-cam"],html.pc label[for$="-cam-in"]{display:none;}
+html.pc .choice[for$="-gal"],html.pc label.choice[for$="-gal-in"]{background:var(--primary);color:var(--on-primary);}
+html.pc .choice[for$="-gal"] .d,html.pc label.choice[for$="-gal-in"] .d{color:var(--on-primary-muted);}
+@media (hover:hover) and (pointer:fine){
+  .btn:not([disabled]):hover,.mode-card:hover .go{filter:brightness(.93);}
+  .btn-ghost:not([disabled]):hover,.link:hover{background:var(--fill);filter:none;}
+  .opt-row:hover,.choice:not(.primary):hover,.settings-list > button:hover,.font-btn:hover,.pill:not(.selected):hover,.seg-btn:not(.selected):not([aria-pressed="true"]):hover,.tabs button[aria-selected="false"]:hover,.dd-btn:hover{background:var(--fill-2);}
+  .opt-row[aria-pressed="true"]:hover,.font-btn[aria-pressed="true"]:hover{background:var(--bg);}
+  html.pc .choice[for$="-gal"]:hover,html.pc label.choice[for$="-gal-in"]:hover,.choice.primary:hover{background:var(--primary-soft);}
+  .tl-thumb:hover,.px-tile:hover,.trans-item:hover{filter:brightness(1.08);}
+}
+
+/* ---------- schermo largo ---------- */
+html.desk .app{padding-left:32px;padding-right:32px;}
+html.desk .app.one{max-width:760px;}
+html.desk .app.one .actionbar{margin-left:-32px;margin-right:-32px;padding-left:32px;padding-right:32px;justify-content:flex-end;}
+html.desk .app.one .actionbar .btn{flex:0 1 300px;}
+html.desk .app.one .actionbar.col{flex-direction:row-reverse;align-items:center;}
+/* home: le due modalità affiancate, gli spot salvati a griglia */
+html.desk .app[data-view="home"]{max-width:1040px;}
+html.desk .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;}
+html.desk .mode-grid .or{display:none;}
+html.desk .mode-grid .mode-card{height:100%;justify-content:space-between;}
+html.desk .spot-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;background:transparent;border-radius:0;overflow:visible;}
+html.desk .spot-item{background:var(--fill);border-radius:18px;border-top:0 !important;}
+/* scelte grandi a griglia */
+html.desk .opt-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+html.desk .app[data-view="duration"] .opt-list{display:flex;}
+html.desk #pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+html.pc #pick .choice[for$="-gal"]{grid-column:1/-1;min-height:120px;padding:22px 26px;}
+html.pc #pick .choice[for$="-gal"] .t{font-size:20px;}
+html.desk .ph,html.desk .add-tile{width:132px;height:132px;}
+/* fogli: al centro dello schermo invece che dal basso */
+html.desk .sheet-overlay{align-items:center;padding:24px;}
+html.desk .sheet{max-width:640px;border-radius:24px;max-height:88vh;padding:20px 24px 24px;}
+html.desk .sheet::before{display:none;}
+html.desk .trans-grid,html.desk .px-grid{grid-template-columns:repeat(4,1fr);}
+@media (prefers-reduced-motion:no-preference){ html.desk .sheet-overlay .sheet{animation:modalIn 200ms var(--ease-out);} }
+
+/* schermate con anteprima: a sinistra l'anteprima grande e ferma, a destra i comandi che scorrono */
+html.desk .app.two{max-width:1640px;height:100vh;height:100dvh;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) clamp(380px,31vw,480px);grid-template-rows:auto auto minmax(0,1fr);column-gap:32px;row-gap:14px;padding-top:14px;padding-bottom:0;}
+html.desk .app.two > .topbar,html.desk .app.two > .bars{grid-column:1/-1;}
+html.desk .app.two > .bars{margin-top:-6px;}
+.desk-l{grid-column:1;grid-row:3;min-height:0;display:flex;flex-direction:column;gap:10px;padding-bottom:24px;--pv-h:min(880px,calc(100vh - 200px));--pvh:min(880px,calc(100vh - 250px));}
+.desk-l > .pane-prev{flex:1;min-height:0;display:flex;flex-direction:column;}
+.desk-l .stage{flex:1;min-height:0;justify-content:center;padding:20px;gap:12px;border-radius:24px;}
+.desk-l .player-ctrl{max-width:640px;}
+.desk-l .drag-hint{font-size:14px;}
+.desk-l .place-wrap{flex:1;min-height:0;align-items:center;}
+.desk-l .render-frame{width:auto;max-width:100%;display:inline-block;}
+.desk-l .render-frame canvas{width:auto;height:auto;max-width:100%;max-height:var(--pvh);}
+.desk-r{grid-column:2;grid-row:3;min-height:0;display:flex;flex-direction:column;}
+.desk-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:20px;padding:2px 8px 24px 2px;margin-right:-8px;}
+.desk-scroll > *{flex-shrink:0;}
+.desk-scroll .pane-scroll{overflow:visible;margin:0;padding:0;border-top:0;flex:none;}
+.desk-scroll > .tabs{position:sticky;top:0;z-index:3;box-shadow:0 0 0 6px var(--bg);}
+.desk-scroll h1{font-size:28px;}
+html.desk .app.two .actionbar{position:static;margin:0;padding:12px 0 20px;background:var(--bg);border-top:1px solid var(--line);flex:none;}
+
 @media (prefers-reduced-motion:no-preference){
   .btn,.seg-btn,.pill,.opt-row,.mode-card,.choice,.trans-item,.icon-btn,.px-tile,.tl-thumb,.font-btn{transition:transform 160ms var(--ease-out),background-color 150ms ease,border-color 150ms ease,color 150ms ease;}
   .btn:active,.seg-btn:active,.pill:active,.opt-row:active,.mode-card:active,.choice:active,.trans-item:active,.icon-btn:active,.px-tile:active,.tl-thumb:active,.font-btn:active{transform:scale(.98);}
@@ -463,6 +531,7 @@ details.more .bx-card{background:var(--fill);}
 <main class="app" id="app"></main>
 <div id="modal-root"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="drop-ov" id="drop-ov" aria-hidden="true"><span><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Rilascia qui foto o video</span></div>
 
 <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.js"></script>
 <script>
@@ -1556,7 +1625,7 @@ function openPixabay(sign, onPick){
   $('#sheet-x').onclick = closeModal;
   $('#sheet-ov').onclick = e => { if (e.target.id === 'sheet-ov') closeModal(); };
   const qEl = $('#px-q'), grid = $('#px-grid'), status = $('#px-status'), more = $('#px-more');
-  const say = t => { status.textContent = t; };
+  const say = t => { status.textContent = pcw(t); };
   const render = () => {
     grid.innerHTML = st.hits.map((h, i) => '<button type="button" class="px-tile" data-i="' + i + '">' + (h.prev ? '<img src="' + esc(h.prev) + '" alt="' + (st.kind === 'video' ? 'Video' : 'Foto') + ' di ' + esc(h.user) + '" loading="lazy">' : '') + (st.kind === 'video' ? '<span class="px-dur">▶ ' + Math.round(h.dur) + ' s</span>' : '') + '<span class="px-src">' + esc(SOURCES[h.src] || '') + '</span></button>').join('');
     more.hidden = !st.more || st.hits.length === 0;
@@ -2058,14 +2127,14 @@ let view = 'home', params = {};
 const VIEWS = {};
 async function go(v, prm){
   view = v; params = prm || {}; stopPlayer(); stopThumbs(); closeModal();
-  const oldPane = $('.pane-scroll', app), keepPane = params.keepScroll && oldPane ? oldPane.scrollTop : 0;
+  const oldPane = $('.desk-scroll', app) || $('.pane-scroll', app), keepPane = params.keepScroll && oldPane ? oldPane.scrollTop : 0;
   const keepY = params.keepScroll ? window.scrollY : 0; delete params.keepScroll;
   app.classList.remove('split', 'kb');
   window.scrollTo(0, 0);
   try {
     await VIEWS[v]();
     if (app.classList.contains('split')) syncViewport();
-    const np = $('.pane-scroll', app); if (np && keepPane) np.scrollTop = keepPane;
+    const np = $('.desk-scroll', app) || $('.pane-scroll', app); if (np && keepPane) np.scrollTop = keepPane;
     app.classList.remove('view-in'); void app.offsetWidth; if (!keepY && !keepPane) app.classList.add('view-in'); else if (keepY) window.scrollTo(0, keepY);
   } catch (e){
     console.error(e);
@@ -2094,6 +2163,94 @@ function syncViewport(){
   document.addEventListener('focusin', e => { on(); if (!app.classList.contains('split')) return; const el = e.target; setTimeout(() => { on(); const pane = el && el.closest && el.closest('.pane-scroll'); if (pane && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'smooth' }); }, 320); });
   document.addEventListener('focusout', () => setTimeout(on, 60));
 })();
+/* =====================================================================
+   VERSIONE PC — stesso sito e stesse funzioni del telefono.
+   · con il mouse: parole giuste ("Clicca", "col mouse", "Dal computer") e foto trascinabili dal computer;
+   · su schermo largo: l'anteprima sta a sinistra, grande e ferma, e i comandi a destra.
+   Ogni volta che una schermata viene disegnata (app.innerHTML) la impaginiamo per il PC.
+   ===================================================================== */
+const deskMQ = window.matchMedia ? window.matchMedia('(min-width: 1000px) and (min-height: 560px)') : null;
+const PC = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+const isDesk = () => !!(deskMQ && deskMQ.matches);
+const PC_WORDS = [
+  [/Tocca e trascina/g, 'Clicca e trascina'], [/Tocca una /g, 'Clicca su una '], [/Tocca un /g, 'Clicca su un '],
+  [/col dito/g, 'col mouse'], [/Trascina il dito/g, 'Trascina il mouse'], [/con due dita/g, 'con la rotellina del mouse'],
+  [/Foto o video che hai già sul telefono/g, 'Foto o video salvati sul computer, o trascinali qui'],
+  [/Una foto che hai già sul telefono/g, 'Una foto salvata sul computer, o trascinala qui'],
+  [/Dalla galleria/g, 'Dal computer'], [/Scegli dalla galleria/g, 'Scegli dal computer']
+];
+function pcw(s){ if (!PC || typeof s !== 'string') return s; PC_WORDS.forEach(r => { s = s.replace(r[0], r[1]); }); return s; }
+function pcWords(root){
+  if (!PC || !root) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n;
+  while ((n = w.nextNode())){ const v = pcw(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
+}
+// Impaginazione PC: le schermate con anteprima diventano a due colonne, le altre una colonna più larga.
+function deskWrap(){
+  const root = document.documentElement, desk = isDesk();
+  root.classList.toggle('desk', desk); root.classList.toggle('pc', PC);
+  app.classList.remove('two', 'one'); app.dataset.view = view;
+  if (!desk) return;
+  app.classList.remove('split', 'kb');
+  const mc = $('.mode-card', app); if (mc && mc.parentElement) mc.parentElement.classList.add('mode-grid');
+  const kids = Array.from(app.children);
+  const prev = kids.find(el => el.matches('.pane-prev, .stage, .place-wrap'));
+  if (!prev){ app.classList.add('one'); return; }
+  app.classList.add('two');
+  const L = document.createElement('div'), R = document.createElement('div'), S = document.createElement('div');
+  L.className = 'desk-l'; R.className = 'desk-r'; S.className = 'desk-scroll';
+  const keep = el => el.matches('.topbar, .bars'), bars = kids.filter(el => el.matches('.actionbar'));
+  const left = [prev], hint = prev.nextElementSibling; if (hint && hint.matches('.place-hint')) left.push(hint);
+  const before = kids.slice(0, kids.indexOf(prev)).filter(el => !keep(el));
+  const after = kids.slice(kids.indexOf(prev) + 1).filter(el => !keep(el) && bars.indexOf(el) < 0 && left.indexOf(el) < 0);
+  before.forEach(el => S.appendChild(el));
+  // le schede (Testo / Design / Foto) vanno a destra, in cima ai comandi
+  if (prev.matches('.pane-prev')) Array.from(prev.children).forEach(c => { if (!c.matches('.stage')) S.appendChild(c); });
+  after.forEach(el => S.appendChild(el));
+  left.forEach(el => L.appendChild(el));
+  R.appendChild(S); bars.forEach(el => R.appendChild(el));
+  app.appendChild(L); app.appendChild(R);
+}
+(function(){
+  const d = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+  if (!d || !d.set) return;
+  Object.defineProperty(app, 'innerHTML', { configurable:true, get(){ return d.get.call(this); }, set(v){ d.set.call(this, v); deskWrap(); pcWords(app); } });
+  Object.defineProperty(modalRoot, 'innerHTML', { configurable:true, get(){ return d.get.call(this); }, set(v){ d.set.call(this, v); pcWords(modalRoot); } });
+  // se la finestra si allarga o si stringe oltre il limite, la schermata si ridisegna nell'altra impaginazione
+  const flip = () => { if (VIEWS[view]) go(view, Object.assign({}, params, { keepScroll:true })); };
+  if (deskMQ){ if (deskMQ.addEventListener) deskMQ.addEventListener('change', flip); else if (deskMQ.addListener) deskMQ.addListener(flip); }
+  // Esc chiude il foglio aperto
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape' || e.defaultPrevented) return; const x = $('#sheet-x', modalRoot); if (x) x.click(); });
+})();
+/* ---------- foto e video trascinati dal computer ---------- */
+function dropInput(){
+  const scope = $('.overlay', modalRoot) ? modalRoot : app;
+  return $('input[type=file][id$="-gal"], input[type=file][id$="-gal-in"]', scope) || (view === 'brand' && scope === app ? $('#logo-in', app) : null);
+}
+(function(){
+  let depth = 0;
+  const hasFiles = e => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') > -1);
+  const canDrop = () => !!dropInput() || (view === 'media' && !$('.overlay', modalRoot));
+  const show = on => { document.documentElement.classList.toggle('dropping', on); if (on){ const t = $('#drop-ov span'); if (t) t.lastChild.nodeValue = view === 'brand' ? 'Rilascia qui il logo' : 'Rilascia qui foto o video'; } };
+  window.addEventListener('dragenter', e => { if (!hasFiles(e) || !canDrop()) return; e.preventDefault(); depth++; show(true); });
+  window.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = canDrop() ? 'copy' : 'none'; });
+  window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) show(false); });
+  window.addEventListener('drop', async e => {
+    if (!hasFiles(e)) return; e.preventDefault(); depth = 0; show(false);
+    const inp = dropInput(), okType = f => /^(image|video)\//.test(f.type || '') || /\.(jpe?g|png|webp|heic|gif|mp4|mov|m4v|webm)$/i.test(f.name || '');
+    let files = Array.from(e.dataTransfer.files || []).filter(okType);
+    if (inp && /^image/.test(inp.accept || '') && !/video/.test(inp.accept || '')) files = files.filter(f => !isVideoFile(f));
+    if (!files.length){ toast('Qui puoi trascinare solo foto o video.'); return; }
+    if (inp){
+      if (!inp.multiple) files = files.slice(0, 1);
+      try { const dt = new DataTransfer(); files.forEach(f => dt.items.add(f)); inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles:true })); }
+      catch (err){ toast('Questo browser non accetta file trascinati: usa il tasto.'); }
+      return;
+    }
+    if (view === 'media'){ await addFiles(files, () => go('media', Object.assign({}, params, { keepScroll:true }))); return; }
+    toast('Per aggiungere foto e video vai su "Foto e video".');
+  });
+})();
 // Intestazione: indietro, passo, home. bars = [quanti passi, passo attuale]
 function topbar(step, bars){
   return '<header class="topbar"><button class="icon-btn" id="tb-back" aria-label="Indietro">' + IC.back + '</button><div class="tb-center">' + (step ? esc(step) : MARK) + '</div><button class="icon-btn" id="tb-home" aria-label="Torna alla home">' + IC.home + '</button></header>' +
@@ -2107,7 +2264,8 @@ function heading(title, sub){ return '<div><h1>' + esc(title) + '</h1>' + (sub ?
 // vh = altezza massima dell'anteprima in % dello schermo; 'fit' = anteprima ferma, grande quanto lo spazio libero (--pv-h).
 function screenHTML(sign, inner, vh){
   const ar = sign.w / sign.h;
-  const width = vh === 'fit' ? 'min(100%, calc(var(--pv-h, 40vh) * ' + ar.toFixed(4) + ' + 16px))' : 'min(100%, ' + ((vh || 46) * ar).toFixed(1) + 'vh)';
+  // --pvh è impostato solo nella versione PC: sul telefono vale l'altezza in vh scritta qui
+  const width = vh === 'fit' ? 'min(100%, calc(var(--pv-h, 40vh) * ' + ar.toFixed(4) + ' + 16px))' : 'min(100%, calc(var(--pvh, ' + (vh || 46) + 'vh) * ' + ar.toFixed(4) + '))';
   return '<div class="frame" style="width:' + width + '"><div class="screen" style="aspect-ratio:' + sign.w + ' / ' + sign.h + '">' + inner + '</div></div>';
 }
 // Suggerimento sotto l'anteprima: le scritte si spostano col dito.
@@ -2812,6 +2970,8 @@ VIEWS.editor = async function(){
   const endDrag = e => { if (e) ptrs.delete(e.pointerId); if (drag && (!e || e.pointerId === drag.id || (drag.kind === 'pinch' && ptrs.size < 2))){ drag = null; dragKind = null; touch(); restartAnim(); } };
   cv.addEventListener('wheel', e => { if (!pinchOK()) return; e.preventDefault(); setZoom((s.zoom || 1) * (e.deltaY < 0 ? 1.06 : 1/1.06)); touch(); }, { passive:false });
   cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+  // con il mouse: la rotellina sull'anteprima fa lo zoom della foto (come le due dita sul telefono)
+  cv.addEventListener('wheel', e => { if (!pinchOK()) return; e.preventDefault(); setZoom((s.zoom || 1) * (e.deltaY > 0 ? 1/1.06 : 1.06)); clearTimeout(cv._wz); cv._wz = setTimeout(touch, 250); }, { passive:false });
 
   /* ---- schede e navigazione ---- */
   const goTab = t => go('editor', Object.assign({}, params, { tab: t, keepScroll: false }));
@@ -3258,7 +3418,7 @@ VIEWS.place = async function(){
   // dimensioni del disegno
   const wrap = $('#pwrap'), cv = $('#pc'), ctx = cv.getContext('2d');
   const iw = img.naturalWidth, ih = img.naturalHeight;
-  let cssW = wrap.clientWidth, cssH = cssW*ih/iw; const maxH = Math.max(260, window.innerHeight*.62);
+  let cssW = wrap.clientWidth, cssH = cssW*ih/iw; const maxH = app.classList.contains('two') ? Math.max(260, wrap.clientHeight - 4) : Math.max(260, window.innerHeight*.62);   // su PC: tutta l'altezza della colonna di sinistra
   if (cssH > maxH){ cssH = maxH; cssW = cssH*iw/ih; }
   placeWidth = wrap.clientWidth;
   const dpr = Math.min(2, window.devicePixelRatio || 1), k0 = Math.min(1, 1600 / Math.max(cssW*dpr, cssH*dpr));
@@ -3280,7 +3440,7 @@ VIEWS.place = async function(){
     else if (redrawing || !site.q) t = 'Trascina il dito sulla foto dove va l\'insegna, da un angolo a quello opposto.';
     else if (site.persp) t = 'Porta ogni angolo sul punto giusto della foto per seguire la prospettiva.';
     else t = 'Trascina l\'insegna per spostarla, un angolo per ingrandirla o rimpicciolirla.';
-    $('#phint').textContent = t;
+    $('#phint').textContent = pcw(t);
     cv.classList.toggle('drawing', measuring || redrawing || !site.q);
   };
   const handles = () => {
@@ -3493,7 +3653,7 @@ function openCrop(s, sign, onDone){
   const draw = () => {
     ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0, 0, PW, PH);
     if (mode === 'full'){ drawPhotoFull(ctx, PW, PH, img, 1); hint.textContent = 'La foto entra tutta nell\'insegna; lo spazio vuoto si riempie con la foto stessa, sfocata.'; return; }
-    hint.textContent = 'Il riquadro ha la forma della tua insegna. Spostalo col dito, allargalo dagli angoli o con due dita.';
+    hint.textContent = pcw('Il riquadro ha la forma della tua insegna. Spostalo col dito, allargalo dagli angoli o con due dita.');
     const s2 = k*dpr; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, PW, PH);
     const x = R.x*s2, y = R.y*s2, w = R.w*s2, h = R.h*s2;
     ctx.fillStyle = 'rgba(5,1,2,.62)'; ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.rect(x, y, w, h); ctx.fill('evenodd');

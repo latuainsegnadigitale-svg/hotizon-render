@@ -1,6 +1,6 @@
 // Horizon Render — service worker (v7)
 // Salva solo le pagine del sito. Non tocca le ricerche online (/api/).
-const CACHE = 'horizon-render-v9';
+const CACHE = 'horizon-render-v10';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './brand/logo-render.png', './brand/mark-horizon.png'];
 
 self.addEventListener('install', e => {

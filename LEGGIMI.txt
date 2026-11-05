@@ -31,7 +31,10 @@ PUBBLICARE SU CLOUDFLARE (con GitHub, come Horizon CRM)
   4) NETLIFY
      - Quando il sito su Cloudflare funziona, su Netlify elimina (o scollega da GitHub) il vecchio sito,
        altrimenti a ogni caricamento su GitHub Netlify ripubblica e consuma crediti.
-  5) SUL TELEFONO
+  5) SUL COMPUTER
+     - Apri lo stesso indirizzo dal browser del computer: con la finestra larga l'anteprima va a sinistra,
+       grande, e i comandi a destra. Le foto si possono trascinare dentro la pagina dal computer.
+  6) SUL TELEFONO
      - Apri il nuovo indirizzo, poi "Aggiungi a schermata Home". I lavori salvati con il vecchio indirizzo
        restano lì: prima di cambiare, scarica i video che ti servono.
 

@@ -2,20 +2,37 @@ HORIZON RENDER — pubblicazione su Cloudflare
 
 A COSA SERVE
   Mostra al cliente la sua attività con l'insegna LED già montata e accesa, con lo spot che gira.
+  Montaggi: solo pannello, totem autoportante, totem con pannello sotto (con il logo dell'attività),
+  bandiera a muro (staffe a sinistra o a destra, lunghezza regolabile), appeso con cavi.
   Logo dell'attività con colori automatici, caselle di testo, sfondo a tinta unita, marchio HORIZON RENDER
   obbligatorio, tasto "Passa a Horizon Offers" con le misure già inserite.
 
 COSA C'È IN QUESTA CARTELLA
   public/          il sito (index.html, logo, icone, ecc.)
-  worker.js        la funzione del server: "Cerca online" (Pixabay, Pexels, Unsplash)
+  worker.js        la funzione del server: portineria (il sito si apre solo dopo l'accesso) e "Cerca online"
+  account.js       account (amministratore e venditori) e registro degli accessi
   wrangler.jsonc   le impostazioni per Cloudflare (non serve modificarle)
+  netlify.toml, netlify-chiuso/   solo per spegnere il vecchio sito Netlify (rimanda al nuovo indirizzo)
+
+ACCOUNT E REGISTRO ACCESSI
+  - Il sito si apre solo con nome utente e password. Chi non ha l'account vede solo la pagina "Accedi".
+  - PRIMA della pubblicazione, su Cloudflare: Worker horizon-render > Settings > Variables and Secrets > Add,
+    tipo "Secret": MASTER_PASSWORD = la password dell'amministratore (nome utente: paolo).
+    Senza questa password NESSUNO può entrare. Al primo accesso il sito crea l'account da solo.
+    Quella password funziona sempre come password di riserva dell'amministratore.
+  - Il database (D1, "horizon-render") lo crea Cloudflare al primo deploy. Le tabelle si creano da sole.
+  - L'amministratore (tondo in alto a destra > Gestisci venditori): apre i venditori, cambia le password,
+    li disattiva, li scollega da tutti i dispositivi. Ogni venditore può restare collegato da massimo 3
+    dispositivi: se entra da un quarto, il più vecchio esce.
+  - Registro accessi: ogni accesso, password sbagliata, account disattivato e visita senza account,
+    con indirizzo IP, città, rete (operatore) e dispositivo. Tiene gli ultimi 6 mesi.
+  - I render restano salvati sul dispositivo: ognuno vede i suoi.
 
 PUBBLICARE SU CLOUDFLARE (con GitHub, come Horizon CRM)
   1) GITHUB
      - Repository horizon-render (se esiste già: "Add file" > "Upload files" e trascina il contenuto di questa
        cartella sopra i file vecchi; se non esiste: "+" > "New repository" > nome horizon-render > Private).
      - Trascina TUTTO il contenuto di questa cartella in un colpo solo: wrangler.jsonc, worker.js e la cartella public.
-     - Se nel repository ci sono ancora netlify.toml o la cartella netlify, puoi cancellarli: non servono più.
      - "Commit changes".
   2) CLOUDFLARE
      - Workers & Pages > Create > "Import a repository" > GitHub > scegli horizon-render.

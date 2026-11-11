@@ -1,14 +1,19 @@
 // Horizon Render — funzione del server per Cloudflare (Worker con file statici)
 //
-// Fa una cosa sola: "Cerca online", cioè cerca foto e video gratuiti su
-// Pixabay, Pexels e Unsplash. Le chiavi restano qui sul server, mai dentro il sito.
-// Tutte le pagine del sito (cartella "public") le serve Cloudflare direttamente, gratis:
-// questa funzione parte solo per gli indirizzi /api/ (le ricerche).
+// Fa tre cose:
+//  · fa da "portineria": il sito (cartella "public") si apre solo a chi ha fatto l'accesso;
+//    tutti gli altri vedono solo la pagina "Accedi" e la loro visita finisce nel registro (IP, città, rete);
+//  · gli account (amministratore e venditori) e il registro degli accessi: vedi account.js;
+//  · "Cerca online", cioè cerca foto e video gratuiti su Pixabay, Pexels e Unsplash
+//    (le chiavi restano qui sul server, mai dentro il sito). Solo per chi ha fatto l'accesso.
 //
 // Impostazioni su Cloudflare (il Worker > Settings > Variables and Secrets), tipo "Secret":
 //   PIXABAY_KEY    la chiave API di Pixabay     (foto e video)
 //   PEXELS_KEY     la chiave API di Pexels      (foto e video)   facoltativa
 //   UNSPLASH_KEY   la "Access Key" di Unsplash  (solo foto)      facoltativa
+//   MASTER_PASSWORD la password dell'amministratore (obbligatoria: senza, nessuno può entrare)
+
+import { handleAcc, gateCheck, loginPage } from './account.js';
 
 let ENV = {};
 let LAST_ERR = '';
@@ -104,6 +109,15 @@ async function handleApi(request){
   if (path.indexOf('/api/') === 0){
     if (!sameSite(request)) return json({ error:'origin' }, 403);
 
+    // Account: accesso, gestione venditori, registro accessi.
+    if (path === '/api/acc'){
+      try { return await handleAcc(request, ENV); }
+      catch (e){ return json({ error:'Qualcosa non ha funzionato sul server. Riprova tra poco.', code:'server' }, 500); }
+    }
+    // Tutto il resto delle /api/ solo con l'accesso fatto.
+    const g = await gateCheck(request, ENV, false).catch(() => ({}));
+    if (!g.user) return json({ error:'Devi accedere di nuovo.', code:'auth' }, 401);
+
     // "Cerca online": una ricerca su tutte le librerie configurate. Le chiavi restano sul server.
     if (path === '/api/search'){
       if (!env('PIXABAY_KEY') && !env('PEXELS_KEY') && !env('UNSPLASH_KEY')) return json({ error:'nokey' }, 503);
@@ -139,11 +153,30 @@ async function handleApi(request){
 }
 
 
+// File che si possono vedere anche senza accesso (servono alla pagina "Accedi" e all'icona sul telefono).
+const PUBLIC = /^\/(manifest\.json|robots\.txt|favicon\.ico|icon-\d+\.png|brand\/mark-horizon\.png)$/;
+const isPage = (req, path) => req.method === 'GET' && (path === '/' || /\.html?$/.test(path) || (req.headers.get('accept') || '').indexOf('text/html') > -1);
+const GATE_HEADERS = { 'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store', 'X-Horizon-Gate':'login', 'X-Robots-Tag':'noindex, nofollow', 'X-Frame-Options':'DENY' };
+
 export default {
   async fetch(request, environment){
     ENV = environment || {};
-    const url = new URL(request.url);
-    if (url.pathname.indexOf('/api/') === 0) return handleApi(request);
-    return environment.ASSETS.fetch(request);
+    const url = new URL(request.url), path = url.pathname;
+    if (path.indexOf('/api/') === 0) return handleApi(request);
+    if (PUBLIC.test(path)) return environment.ASSETS.fetch(request);
+    // Portineria: senza accesso valido si vede solo la pagina "Accedi".
+    const page = isPage(request, path);
+    let g = {};
+    try { g = await gateCheck(request, ENV, page); } catch (e){ g = {}; }
+    if (g.nodb) return new Response('Horizon Render: database non collegato.', { status: 503, headers: { 'Content-Type':'text/plain; charset=utf-8', 'Cache-Control':'no-store' } });
+    if (!g.user){
+      if (page) return new Response(loginPage(!ENV.MASTER_PASSWORD), { status: 200, headers: GATE_HEADERS });
+      return new Response('Accesso richiesto', { status: 401, headers: { 'Cache-Control':'no-store' } });
+    }
+    const res = await environment.ASSETS.fetch(request);
+    if (!page) return res;
+    // le pagine del sito non restano nella cache condivisa: ogni apertura passa dalla portineria
+    const out = new Response(res.body, res); out.headers.set('Cache-Control', 'private, no-cache'); out.headers.set('X-Frame-Options', 'DENY');
+    return out;
   }
 };

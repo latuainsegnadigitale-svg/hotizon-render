@@ -6,6 +6,12 @@
   "keep_vars": true,
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
-  }
+    "binding": "ASSETS",
+    // Ogni richiesta passa prima dalla funzione del server: così il sito si apre solo dopo l'accesso.
+    "run_worker_first": true
+  },
+  // Database degli account e del registro accessi (Cloudflare D1). Al primo deploy Cloudflare lo crea da solo e lo collega.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "horizon-render" }
+  ]
 }

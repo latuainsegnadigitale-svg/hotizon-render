@@ -525,6 +525,51 @@ html.desk .app.two .actionbar{position:static;margin:0;padding:12px 0 20px;backg
   .toast{transition:opacity .2s ease,transform .2s ease;}
   .progress-fill{transition:width .15s linear;}
 }
+/* account: tondo in alto a destra, gestione venditori, registro accessi */
+.home-top{grid-template-columns:1fr auto !important;}
+.acc-btn{width:40px;height:40px;border-radius:20px;border:0;background:var(--primary);color:var(--on-primary);font-weight:700;font-size:14px;letter-spacing:.02em;display:grid;place-items:center;padding:0;}
+.acc-head{display:flex;align-items:center;gap:12px;min-width:0;}
+.acc-head h3{margin:0;}
+.acc-ava{width:48px;height:48px;border-radius:24px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font-weight:700;font-size:16px;flex-shrink:0;}
+.acc-ava.sm{width:40px;height:40px;border-radius:20px;font-size:14px;}
+.acc-item{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;padding:12px 14px;}
+.acc-item+.acc-item{border-top:1px solid var(--line);}
+.acc-item.off .acc-ava{background:var(--field);}
+.acc-item.off strong{color:var(--muted);}
+.acc-flag{display:block;margin-top:6px;background:var(--warn-bg);color:var(--warn-fg);border-radius:8px;padding:6px 10px;font-size:13px;line-height:1.35;font-weight:600;}
+.prof-card{width:100%;text-align:left;border:0;color:var(--fg);font:inherit;}
+.prof-card .chev{flex-shrink:0;color:var(--muted);}
+.pass-wrap{position:relative;}
+.pass-wrap .input{padding-right:96px;}
+.pass-wrap .link{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:15px;}
+.log-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.log-sum div{background:var(--fill);border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:2px;}
+.log-sum b{font-size:22px;font-variant-numeric:tabular-nums;}
+.log-sum span{font-size:12px;color:var(--muted);line-height:1.2;}
+.log-sum .bad{background:var(--warn-bg);}.log-sum .bad b,.log-sum .bad span{color:var(--warn-fg);}
+.log-list{list-style:none;margin:0;padding:0;background:var(--fill);border-radius:18px;overflow:hidden;}
+.log-item{padding:12px 14px;display:flex;flex-direction:column;gap:3px;font-size:14px;}
+.log-item+.log-item{border-top:1px solid var(--line);}
+.log-item.bad{box-shadow:inset 4px 0 0 var(--warn-fg);}
+.log-item.bad strong{color:var(--warn-fg);}
+.log-top{display:flex;justify-content:space-between;gap:10px;}
+.log-top strong{font-size:15px;}
+.log-top span{color:var(--muted);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.log-who{overflow-wrap:anywhere;}
+.log-who .muted{color:var(--muted);}
+.log-where{color:var(--muted);font-size:13px;overflow-wrap:anywhere;}
+.log-ip{border:0;background:var(--bg);color:var(--fg);border-radius:6px;padding:1px 6px;margin-right:6px;font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;}
+@media (max-width:420px){ .log-sum{grid-template-columns:repeat(2,minmax(0,1fr));} }
+.cm-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.cm-row .field{margin:0;}
+.cm-in{position:relative;}
+.cm-in .input{padding-right:46px;font-variant-numeric:tabular-nums;}
+.cm-in span{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;}
+.pl-thumb{width:44px;height:44px;border-radius:10px;overflow:hidden;background:var(--fill-2);display:grid;place-items:center;}
+.pl-thumb img{max-width:80%;max-height:80%;object-fit:contain;display:block;}
+.group .link{align-self:flex-start;padding:4px 0;font-size:15px;text-decoration:underline;text-underline-offset:2px;}
+.muted{color:var(--muted);}
+.range-row .small{font-size:13px;flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -826,7 +871,7 @@ async function saveNow(){
   catch (e){ if (!saveWarned){ saveWarned = true; toast('Non riesco a salvare sul dispositivo (spazio pieno o salvataggio non disponibile). Puoi comunque creare ed esportare il render.'); } }
 }
 function newProject(){
-  return { id: uid(), createdAt: Date.now(), updatedAt: Date.now(), mode: 'manual', shape: null, def: null, sign: null, bizName: '', logo: null, logoBg: '#14171C',
+  return { id: uid(), owner: (typeof me !== 'undefined' && me) ? me.id : null, createdAt: Date.now(), updatedAt: Date.now(), mode: 'manual', shape: null, def: null, sign: null, bizName: '', logo: null, logoBg: '#14171C',
     colors: { primary: '#FFFFFF', secondary: '#1D1D1F' }, fontStyle: DEFAULT_STYLE, motion: 'slide',
     g: { product: '', offer: '', price: '', move: 'slide', lay: null, done: false },
     duration: null, slides: [], outroTrans: 'fade', outroFixed: false,
@@ -854,7 +899,7 @@ function loadImg(src){
   const pr = new Promise(res => { const i = new Image(); i.onload = () => { imgReady.set(src, i); res(i); }; i.onerror = () => res(null); i.src = src; });
   imgCache.set(src, pr); return pr;
 }
-async function loadAssets(p){ await Promise.all([loadImg(p.logo)].concat(p.slides.map(s => loadImg(s.photo)), p.slides.map(s => loadImg(s.lg && s.lg.src)), p.slides.map(s => loadVideo(s)), [loadImg(p.site && p.site.photo), loadImg(BRAND_MARK)])); }
+async function loadAssets(p){ await Promise.all([loadImg(p.logo)].concat(p.slides.map(s => loadImg(s.photo)), p.slides.map(s => loadImg(s.lg && s.lg.src)), p.slides.map(s => loadVideo(s)), [loadImg(p.site && p.site.photo), loadImg(p.site && p.site.plateLogo), loadImg(BRAND_MARK)])); }
 
 /* ---------- video (galleria o Pixabay) ---------- */
 const mediaMem = new Map();      // id → Blob
@@ -1594,6 +1639,7 @@ async function pxSearch(q, page, orient, kind){
   if (orient) prm.set('orient', orient);
   const ck = 'all:' + prm.toString(); const cached = pxCacheGet(ck); if (cached) return cached;
   const res = await fetch(PX_API + '?' + prm.toString(), { credentials:'same-origin' });
+  if (res.status === 401){ authLost(); throw new Error('auth'); }
   const fail = code => { const e = new Error(code); e.code = code; throw e; };
   if (res.status === 429) fail('rate');
   if (res.status === 401) fail('auth');
@@ -1705,7 +1751,7 @@ function syncPanel(p){
 function offersLink(p){
   const c = panelCm(p), st = (p.site && p.site.structure) || 'none';
   const prm = new URLSearchParams({ w: String(c.w), h: String(c.h), from: 'render' });
-  if (st === 'totem' || st === 'pole' || st === 'poles') prm.set('env', 'ext');
+  if (st === 'totem' || st === 'totemPanel' || st === 'flag') prm.set('env', 'ext');
   else if (st === 'hang') prm.set('env', 'int');
   return OFFERS_URL + '?' + prm.toString();
 }
@@ -1713,15 +1759,21 @@ const offersBtn = (p, id) => '<a class="btn btn-secondary btn-block" id="' + id 
 function newSite(){ return { photo: null, q: null, persp: false, structure: null, color: 'black', ground: null, top: null }; }
 function shade(hex, k){ const c = hexToRgb(hex), t = k < 0 ? 0 : 255, a = Math.abs(k); return rgbToHex(c.r + (t - c.r)*a, c.g + (t - c.g)*a, c.b + (t - c.b)*a); }
 // Strutture di sostegno. ground = cm tra il fondo del pannello e terra; top = cm tra il pannello e il soffitto.
+// Solo le strutture che JSE realizza davvero (niente palo singolo né due pali separati).
 const STRUCTURES = [
-  { id:'none',  label:'Solo pannello',      hint:'A parete, in vetrina o su un palo che c\'è già' },
-  { id:'totem', label:'Totem autoportante', hint:'Struttura in ferro con gambe e base, si sposta' },
-  { id:'pole',  label:'Su palo',            hint:'Un palo centrale fino a terra' },
-  { id:'poles', label:'Su due pali',        hint:'Due pali laterali fino a terra' },
-  { id:'hang',  label:'Appeso con cavi',    hint:'Sospeso in vetrina con cavi d\'acciaio' }
+  { id:'none',       label:'Solo pannello',            hint:'A parete o in vetrina' },
+  { id:'totem',      label:'Totem autoportante',       hint:'Struttura in ferro con due gambe e base' },
+  { id:'totemPanel', label:'Totem con pannello sotto', hint:'Le due gambe coperte da un pannello con il logo dell\'attività' },
+  { id:'flag',       label:'Bandiera a muro',          hint:'Staffe laterali fissate al muro, a sinistra o a destra' },
+  { id:'hang',       label:'Appeso con cavi',          hint:'Sospeso in vetrina con cavi d\'acciaio' }
 ];
-const STRUCT_DEFAULTS = { totem:{ ground:80 }, pole:{ ground:200 }, poles:{ ground:150 }, hang:{ top:70 } };
-const FRAME_CM = { none:2, totem:5, pole:3.5, poles:3.5, hang:2.5 };   // spessore della cornice
+const STRUCT_DEFAULTS = { totem:{ ground:80 }, totemPanel:{ ground:80 }, hang:{ top:70 } };
+const FRAME_CM = { none:2, totem:5, totemPanel:5, flag:3.5, hang:2.5 };   // spessore della cornice
+const FLAG_ARM = 30;                                                     // cm di staffa tra la cornice e il muro
+const hasGround = st => st === 'totem' || st === 'totemPanel';
+const hasColor = st => st === 'totem' || st === 'totemPanel' || st === 'flag';
+// Render salvati con le strutture tolte (palo, due pali): diventano totem autoportante.
+const structOf = site => { const st = site && site.structure; return st === 'pole' || st === 'poles' ? 'totem' : STRUCTURES.some(x => x.id === st) ? st : (st ? 'none' : null); };
 const STRUCT_COLORS = [
   { id:'black',      label:'Nero',      hex:'#18181B' },
   { id:'anthracite', label:'Antracite', hex:'#3C3F45' },
@@ -1758,7 +1810,7 @@ function pointInPoly(pt, poly){
 // Geometria in centimetri: P(x, y) porta un punto del pannello (in cm, origine in alto a sinistra) sulla foto.
 function siteGeo(p, W, H){
   const site = p.site; if (!site || !site.q) return null;
-  const c = panelCm(p), st = site.structure || 'none', f = FRAME_CM[st] || 2;
+  const c = panelCm(p), st = structOf(site) || 'none', f = FRAME_CM[st] || 2;
   const m = homography(quadPx(site.q, W, H));
   const P = (x, y) => hApply(m, x/c.w, y/c.h);
   const def = STRUCT_DEFAULTS[st] || {};
@@ -1767,15 +1819,19 @@ function siteGeo(p, W, H){
   const pxPerCm = dist(P(0, c.h/2), P(c.w, c.h/2)) / c.w;
   // Sopra e sotto il pannello (gambe, pali, cavi) si prosegue dritti lungo i lati del pannello:
   // così la struttura resta stabile anche se gli angoli non sono perfetti.
+  // Lo stesso vale ai lati (staffe della bandiera): si prosegue dritti lungo i bordi alto e basso.
   const TL = P(0, 0), TR = P(c.w, 0), BR = P(c.w, c.h), BL = P(0, c.h);
   const d = [((BL[0] - TL[0]) + (BR[0] - TR[0]))/(2*c.h), ((BL[1] - TL[1]) + (BR[1] - TR[1]))/(2*c.h)];
+  const dH = [((TR[0] - TL[0]) + (BR[0] - BL[0]))/(2*c.w), ((TR[1] - TL[1]) + (BR[1] - BL[1]))/(2*c.w)];
   const S = (x, y) => {
-    if (y > c.h){ const b = P(x, c.h); return [b[0] + d[0]*(y - c.h), b[1] + d[1]*(y - c.h)]; }
-    if (y < 0){ const b = P(x, 0); return [b[0] + d[0]*y, b[1] + d[1]*y]; }
-    return P(x, y);
+    const xc = clamp(x, 0, c.w), yc = clamp(y, 0, c.h), b = P(xc, yc);
+    return [b[0] + dH[0]*(x - xc) + d[0]*(y - yc), b[1] + dH[1]*(x - xc) + d[1]*(y - yc)];
   };
   const yAlong = (pt, y0) => { const b = P(c.w/2, y0), dd = (d[0]*d[0] + d[1]*d[1]) || 1; return y0 + ((pt[0] - b[0])*d[0] + (pt[1] - b[1])*d[1]) / dd; };
-  return { m, inv: hInv(m), c, f, P, S, yAlong, G, T, st, pxPerCm };
+  const xAlong = (pt, x0) => { const b = P(x0, c.h/2), dd = (dH[0]*dH[0] + dH[1]*dH[1]) || 1; return x0 + ((pt[0] - b[0])*dH[0] + (pt[1] - b[1])*dH[1]) / dd; };
+  const side = site.side === 'left' ? 'left' : 'right', arm = site.arm != null ? site.arm : FLAG_ARM;
+  const wallX = side === 'right' ? c.w + f + arm : -f - arm;   // dove le staffe toccano il muro (cm)
+  return { m, inv: hInv(m), c, f, P, S, yAlong, xAlong, G, T, st, pxPerCm, side, arm, wallX };
 }
 function polyCm(ctx, g, pts){ ctx.beginPath(); pts.forEach((pt, i) => { const q = g.S(pt[0], pt[1]); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); }
 function rectCm(ctx, g, x0, y0, x1, y1){ polyCm(ctx, g, [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]); }
@@ -1798,26 +1854,87 @@ function groundShadow(ctx, g, x0, x1, y){
   gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(.55, 'rgba(0,0,0,.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI*2); ctx.fill(); ctx.restore();
 }
+// Pannello sotto lo schermo (totem con pannello): misure in cm, null = automatiche (copre le gambe fino alla base).
+function plateBox(g, site){
+  const w = g.c.w, f = g.f, y0 = g.c.h + f + 1.5, maxH = Math.max(10, g.G - 5 - y0), autoH = Math.max(10, maxH - 4), autoW = w + 2*f;
+  const ph = clamp(site.plateH != null ? site.plateH : autoH, 10, maxH), pw = clamp(site.plateW != null ? site.plateW : autoW, 20, autoW + 120);
+  return { x0: w/2 - pw/2, x1: w/2 + pw/2, y0, y1: y0 + ph, pw, ph, maxH, autoH, autoW };
+}
+const plateLogoSrc = (p, site) => site.plateLogoOn === false ? null : (site.plateLogo || p.logo || null);
+function plateColorOf(p, site, structCol){
+  const id = site.plateColor || (plateLogoSrc(p, site) ? 'logo' : 'struct');
+  if (id === 'logo') return p.logoBg || '#FFFFFF';
+  if (id === 'struct') return structCol;
+  return (STRUCT_COLORS.find(c => c.id === id) || {}).hex || structCol;
+}
+// Un'immagine (il logo) disegnata su un rettangolo in cm che segue la prospettiva dell'insegna (a triangoli).
+function drawImgCm(ctx, g, img, x0, y0, x1, y1){
+  const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height, N = 8; if (!sw || !sh) return;
+  const tri = (s0, s1, s2, d0, d1, d2) => {
+    const den = s0[0]*(s1[1] - s2[1]) + s1[0]*(s2[1] - s0[1]) + s2[0]*(s0[1] - s1[1]); if (!den) return;
+    const sol = k => [
+      (d0[k]*(s1[1] - s2[1]) + d1[k]*(s2[1] - s0[1]) + d2[k]*(s0[1] - s1[1])) / den,
+      (d0[k]*(s2[0] - s1[0]) + d1[k]*(s0[0] - s2[0]) + d2[k]*(s1[0] - s0[0])) / den,
+      (d0[k]*(s1[0]*s2[1] - s2[0]*s1[1]) + d1[k]*(s2[0]*s0[1] - s0[0]*s2[1]) + d2[k]*(s0[0]*s1[1] - s1[0]*s0[1])) / den ];
+    const X = sol(0), Y = sol(1), cx = (d0[0] + d1[0] + d2[0])/3, cy = (d0[1] + d1[1] + d2[1])/3;
+    const grow = q => [q[0] + Math.sign(q[0] - cx)*.5, q[1] + Math.sign(q[1] - cy)*.5];
+    const e0 = grow(d0), e1 = grow(d1), e2 = grow(d2);
+    ctx.save(); ctx.beginPath(); ctx.moveTo(e0[0], e0[1]); ctx.lineTo(e1[0], e1[1]); ctx.lineTo(e2[0], e2[1]); ctx.closePath(); ctx.clip();
+    ctx.transform(X[0], Y[0], X[1], Y[1], X[2], Y[2]); ctx.drawImage(img, 0, 0); ctx.restore();
+  };
+  ctx.save(); rectCm(ctx, g, x0, y0, x1, y1); ctx.clip(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++){
+    const u0 = i/N, u1 = (i + 1)/N, v0 = j/N, v1 = (j + 1)/N, X = u => x0 + (x1 - x0)*u, Y = v => y0 + (y1 - y0)*v;
+    const p00 = g.S(X(u0), Y(v0)), p10 = g.S(X(u1), Y(v0)), p11 = g.S(X(u1), Y(v1)), p01 = g.S(X(u0), Y(v1));
+    tri([u0*sw, v0*sh], [u1*sw, v0*sh], [u1*sw, v1*sh], p00, p10, p11);
+    tri([u0*sw, v0*sh], [u1*sw, v1*sh], [u0*sw, v1*sh], p00, p11, p01);
+  }
+  ctx.restore();
+}
+function drawLowerPanel(ctx, g, p, col){
+  const site = p.site, b = plateBox(g, site), base = plateColorOf(p, site, col), e = Math.min(1.6, b.pw*.03, b.ph*.05);
+  // cassonetto: bordo più scuro e superficie leggermente sfumata dall'alto
+  const a = g.S((b.x0 + b.x1)/2, b.y0), z = g.S((b.x0 + b.x1)/2, b.y1);
+  rectCm(ctx, g, b.x0, b.y0, b.x1, b.y1); ctx.fillStyle = shade(base, -.35); ctx.fill();
+  const gr = ctx.createLinearGradient(a[0], a[1], z[0], z[1]);
+  gr.addColorStop(0, shade(base, .1)); gr.addColorStop(.5, base); gr.addColorStop(1, shade(base, -.14));
+  rectCm(ctx, g, b.x0 + e, b.y0 + e, b.x1 - e, b.y1 - e); ctx.fillStyle = gr; ctx.fill();
+  const src = plateLogoSrc(p, site), img = src && imgReady.get(src);
+  if (img && img.naturalWidth){
+    const k = clamp((site.plateLogoSize != null ? site.plateLogoSize : 70)/100, .2, 1), m = Math.min(b.pw, b.ph)*.07;
+    const bw = (b.pw - 2*m)*k, bh = (b.ph - 2*m)*k, r = img.naturalWidth / img.naturalHeight;
+    let lw = bw, lh = bw / r; if (lh > bh){ lh = bh; lw = bh * r; }
+    const cx = (b.x0 + b.x1)/2, cy = b.y0 + (b.ph)*(site.plateLogoY != null ? site.plateLogoY : .5);
+    const ly0 = clamp(cy - lh/2, b.y0 + m, b.y1 - m - lh);
+    drawImgCm(ctx, g, img, cx - lw/2, ly0, cx + lw/2, ly0 + lh);
+  }
+}
 // Struttura di sostegno e cornice del pannello (tutto ciò che non si illumina).
 function drawStructure(ctx, g, p){
   const site = p.site, st = g.st, col = (STRUCT_COLORS.find(c => c.id === site.color) || STRUCT_COLORS[0]).hex;
   const w = g.c.w, h = g.c.h, f = g.f, G = g.G, T = g.T;
   ctx.save();
-  if (st === 'totem'){
+  if (st === 'totem' || st === 'totemPanel'){
     groundShadow(ctx, g, -30, w + 30, G);
     const lw = clamp(w*.08, 4, 8), inset = Math.max(lw, w*.1);
     [[inset, inset + lw], [w - inset - lw, w - inset]].forEach(x => { rectCm(ctx, g, x[0], h + f - 1, x[1], G - 5); ctx.fillStyle = metal(ctx, g, x[0], x[1], (h + G)/2, col); ctx.fill(); });
     plate(ctx, g, -14, G - 5, w + 14, G, col);
-  } else if (st === 'pole'){
-    groundShadow(ctx, g, w/2 - 34, w/2 + 34, G);
-    rectCm(ctx, g, w/2 - 5, h + f - 1, w/2 + 5, G - 2); ctx.fillStyle = metal(ctx, g, w/2 - 5, w/2 + 5, (h + G)/2, col); ctx.fill();
-    plate(ctx, g, w/2 - 22, G - 2.5, w/2 + 22, G, col);
-  } else if (st === 'poles'){
-    [w*.2, w*.8].forEach(xc => {
-      groundShadow(ctx, g, xc - 24, xc + 24, G);
-      rectCm(ctx, g, xc - 4, h + f - 1, xc + 4, G - 2); ctx.fillStyle = metal(ctx, g, xc - 4, xc + 4, (h + G)/2, col); ctx.fill();
-      plate(ctx, g, xc - 15, G - 2.5, xc + 15, G, col);
+    if (st === 'totemPanel') drawLowerPanel(ctx, g, p, col);
+  } else if (st === 'flag'){
+    // bandiera: due staffe orizzontali dal lato del pannello fino alla piastra sul muro
+    const right = g.side === 'right', X0 = right ? w + f - 1 : -f + 1, X1 = g.wallX, t = clamp(h*.05, 3, 5);
+    const ys = h >= 40 ? [h*.2, h*.8] : [h*.5];
+    ys.forEach(y => {
+      rectCm(ctx, g, Math.min(X0, X1), y - t/2, Math.max(X0, X1), y + t/2);
+      const a = g.S((X0 + X1)/2, y - t/2), b = g.S((X0 + X1)/2, y + t/2), gr = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+      gr.addColorStop(0, shade(col, .3)); gr.addColorStop(.4, col); gr.addColorStop(1, shade(col, -.55)); ctx.fillStyle = gr; ctx.fill();
     });
+    // piastra a muro con un'ombra leggera
+    const px0 = right ? X1 : X1 - 2.5, px1 = right ? X1 + 2.5 : X1, py0 = ys[0] - 8, py1 = ys[ys.length - 1] + 8;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = Math.max(3, g.pxPerCm*3); ctx.shadowOffsetX = (right ? -1 : 1)*g.pxPerCm*.6; ctx.shadowOffsetY = g.pxPerCm*1.2;
+    rectCm(ctx, g, px0, py0, px1, py1); ctx.fillStyle = shade(col, -.15); ctx.fill(); ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ys.forEach(y => { [y - 5, y + 5].forEach(yy => { const q = g.S((px0 + px1)/2, yy); ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(.8, g.pxPerCm*.6), 0, Math.PI*2); ctx.fill(); }); });
   } else if (st === 'hang'){
     ctx.lineWidth = Math.max(1.4, g.pxPerCm*.45); ctx.strokeStyle = 'rgba(225,229,235,.95)'; ctx.lineCap = 'round';
     [Math.min(8, w*.12), w - Math.min(8, w*.12)].forEach(x => {
@@ -1827,7 +1944,7 @@ function drawStructure(ctx, g, p){
   }
   // cornice del pannello, con ombra sul muro se è appoggiato a parete
   const out = [[-f,-f],[w + f,-f],[w + f,h + f],[-f,h + f]];
-  const frameCol = (st === 'none' || st === 'hang') ? '#121214' : col;
+  const frameCol = (st === 'none' || st === 'hang') ? '#121214' : col;   // totem, totem con pannello, bandiera: cornice del colore della struttura
   if (st === 'none'){
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = Math.max(4, g.pxPerCm*6); ctx.shadowOffsetY = g.pxPerCm*2.2; ctx.shadowOffsetX = g.pxPerCm*.8;
     polyCm(ctx, g, out); ctx.fillStyle = frameCol; ctx.fill(); ctx.restore();
@@ -2100,6 +2217,7 @@ function migrate(p){
   }
   p.fx = Object.assign({ glow:55, bg:'dim', pixels:true, sheen:true }, p.fx || {}); if (!p.quality) p.quality = 'fhd';
   if (p.panel) syncPanel(p);
+  if (p.site && (p.site.structure === 'pole' || p.site.structure === 'poles')) p.site.structure = 'totem';   // strutture non più disponibili
   if (!p.mode) p.mode = 'manual';
   if (!p.g) p.g = { product:'', offer:'', price:'', move:'slide' };
   if (p.g.lay === undefined) p.g.lay = null;
@@ -2463,6 +2581,7 @@ VIEWS.home = async function(){
   project = null;
   let list = [], dbOk = true;
   try { list = (await DB.all()) || []; } catch (e){ dbOk = false; }
+  list = list.filter(x => !x.owner || (me && x.owner === me.id));   // ognuno vede i suoi render (quelli di prima degli account restano visibili)
   list.sort((a, b) => b.updatedAt - a.updatedAt);
   const item = p => {
     migrate(p);
@@ -2473,7 +2592,7 @@ VIEWS.home = async function(){
       '<div class="spot-actions"><button class="btn btn-primary btn-sm" data-open="' + p.id + '">Apri</button><button class="btn btn-secondary btn-sm" data-dup="' + p.id + '">Duplica</button><button class="btn btn-ghost btn-sm" data-del="' + p.id + '">Elimina</button></div></li>';
   };
   app.innerHTML =
-    '<div class="topbar" style="grid-template-columns:1fr"><div class="brand">' + MARK + 'Horizon Render</div></div>' +
+    '<div class="topbar home-top"><div class="brand">' + MARK + 'Horizon Render</div>' + accBtnHTML() + '</div>' +
     heading('Come vuoi creare il render?', 'Mostra al cliente la sua attività con l\'insegna LED già montata e accesa.') +
     '<div class="stack">' +
       '<button class="mode-card fast" id="go-guided" type="button"><span class="row"><span class="mode-tag">Veloce</span><span class="pill-time">Circa 1 minuto</span></span>' +
@@ -2485,6 +2604,7 @@ VIEWS.home = async function(){
     '<div class="stack"><h2>I miei render</h2>' +
     (list.length ? '<ul class="spot-list">' + list.map(item).join('') + '</ul>' : '<div class="empty">Qui trovi i render che crei. Puoi riaprirli, cambiare la foto dell\'attività o duplicarli per un altro cliente.</div>') +
     '<p class="hint small">' + (dbOk ? 'I render restano salvati solo su questo dispositivo.' : 'Su questo browser il salvataggio non è disponibile: esporta il video prima di chiudere.') + '</p></div>';
+  bindAccChrome();
   $('#go-guided').onclick = () => { project = newProject(); project.mode = 'guided'; project.duration = 15; go('sign', { flow:true }); };
   $('#go-manual').onclick = () => { project = newProject(); project.mode = 'manual'; go('sign', { flow:true }); };
   $$('[data-open]').forEach(b => b.onclick = () => {
@@ -2500,7 +2620,7 @@ VIEWS.home = async function(){
   });
   $$('[data-dup]').forEach(b => b.onclick = async () => {
     const src = list.find(x => x.id === b.dataset.dup); if (!src) return;
-    const copy = JSON.parse(JSON.stringify(src)); copy.id = uid(); copy.createdAt = copy.updatedAt = Date.now();
+    const copy = JSON.parse(JSON.stringify(src)); copy.id = uid(); copy.owner = me ? me.id : (src.owner || null); copy.createdAt = copy.updatedAt = Date.now();
     copy.bizName = (copy.bizName || 'Render') + ' (copia)';
     copy.slides.forEach(s => s.id = uid());
     try { await DB.put(copy); toast('Render duplicato'); } catch (e){ toast('Non riesco a duplicare: spazio insufficiente sul dispositivo.'); }
@@ -3224,19 +3344,19 @@ VIEWS.review = async function(){
 const STRUCT_SVG = {
   none:  '<path d="M6 8v48M58 8v48" stroke="currentColor" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 4"/><rect x="14" y="19" width="36" height="26" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/>',
   totem: '<rect x="16" y="6" width="32" height="24" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M23 31v23M41 31v23" stroke="currentColor" stroke-width="3"/><path d="M12 56h40" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
-  pole:  '<rect x="12" y="6" width="40" height="22" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M32 29v26" stroke="currentColor" stroke-width="3.5"/><path d="M23 56h18" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
-  poles: '<rect x="8" y="8" width="48" height="20" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M18 29v26M46 29v26" stroke="currentColor" stroke-width="3"/><path d="M11 56h14M39 56h14" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
+  totemPanel: '<rect x="16" y="4" width="32" height="22" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><rect x="17" y="28.5" width="30" height="21" rx="1.5" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="39" r="5" stroke="currentColor" stroke-width="2"/><path d="M23 50v4M41 50v4" stroke="currentColor" stroke-width="3"/><path d="M12 56h40" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
+  flag:  '<path d="M59 5v54" stroke="currentColor" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 4"/><rect x="5" y="16" width="36" height="30" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M41 22h14M41 40h14" stroke="currentColor" stroke-width="3"/><path d="M56 15v32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
   hang:  '<path d="M4 6h56" stroke="currentColor" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/><path d="M19 7v15M45 7v15" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="22" width="40" height="27" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/>'
 };
-const structIcon = id => '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true">' + (STRUCT_SVG[id] || STRUCT_SVG.none) + '</svg>';
+const structIcon = (id, flip) => '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true">' + (flip ? '<g transform="translate(64 0) scale(-1 1)">' : '') + (STRUCT_SVG[id] || STRUCT_SVG.none) + (flip ? '</g>' : '') + '</svg>';
 function openStructureSheet(onDone){
-  const site = project.site, cur = site.structure || 'none';
+  const site = project.site, cur = structOf(site) || 'none';
   modalRoot.innerHTML = '<div class="overlay sheet-overlay" id="sheet-ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Come va montata l\'insegna"><div class="sheet-head"><div><h3>Come va montata l\'insegna?</h3><p class="hint">Il pannello da solo, oppure con la struttura che lo regge: la disegniamo noi nella foto.</p></div><button class="icon-btn" id="sheet-x" aria-label="Chiudi">' + IC.x + '</button></div>' +
     '<div class="struct-grid">' +
     STRUCTURES.map(s => '<button type="button" class="struct-card' + (s.id === cur && site.structure ? ' selected' : '') + '" data-v="' + s.id + '">' + structIcon(s.id) + '<strong>' + s.label + '</strong><span>' + s.hint + '</span></button>').join('') + '</div></div></div>';
   const finish = () => { closeModal(); if (onDone) onDone(); };
   $('#sheet-x').onclick = () => { if (!site.structure){ site.structure = 'none'; touch(); } finish(); };
-  $$('.struct-card', modalRoot).forEach(b => b.onclick = () => { site.structure = b.dataset.v; site.ground = null; site.top = null; touch(); finish(); });
+  $$('.struct-card', modalRoot).forEach(b => b.onclick = () => { site.structure = b.dataset.v; site.ground = null; site.top = null; if (b.dataset.v === 'flag'){ if (!site.side) site.side = 'right'; site.arm = null; } touch(); finish(); });
 }
 /* ---------- Foto dell'attività: taglia e sistema (ritaglio libero, rotazione, raddrizza) ---------- */
 // Disegna la foto originale ruotata (a scatti di 90° + angolo fine) e ingrandita quanto basta per non lasciare angoli vuoti.
@@ -3397,8 +3517,28 @@ VIEWS.place = async function(){
     bindTopbar(async () => { await saveNow(); go(spotView()); });
     return;
   }
-  const c = panelCm(p), res = ledRes(p), stId = site.structure || 'none', stDef = STRUCTURES.find(x => x.id === stId);
-  const needGround = ['totem','pole','poles'].indexOf(stId) > -1, needTop = stId === 'hang';
+  if (site.structure && structOf(site) !== site.structure){ site.structure = structOf(site); touch(); }   // palo / due pali di prima → totem
+  const c = panelCm(p), res = ledRes(p), stId = structOf(site) || 'none', stDef = STRUCTURES.find(x => x.id === stId);
+  const needGround = hasGround(stId), needTop = stId === 'hang', needArm = stId === 'flag', isFlip = needArm && site.side === 'left';
+  const plLogo = plateLogoSrc(p, site), plColor = site.plateColor || (plLogo ? 'logo' : 'struct');
+  const plColors = (plLogo || p.logo ? [{ id:'logo', label:'Come il logo', hex: p.logoBg || '#FFFFFF' }] : []).concat([{ id:'struct', label:'Come la struttura', hex:(STRUCT_COLORS.find(k => k.id === (site.color || 'black')) || STRUCT_COLORS[0]).hex }], STRUCT_COLORS.filter(k => k.id !== (site.color || 'black')));
+  const numField = (id, label, val) => '<div class="field cm-field"><label class="lbl" for="' + id + '">' + label + '</label><div class="cm-in"><input class="input" id="' + id + '" type="number" inputmode="numeric" min="5" step="1" value="' + val + '"><span>cm</span></div></div>';
+  const panelGroup = stId !== 'totemPanel' ? '' :
+    '<div class="group"><div class="group-title">Pannello sotto lo schermo</div><p class="help" style="margin:0">Copre le due gambe. Di base è largo come lo schermo e arriva fino alla base: cambia le misure se serve.</p>' +
+      '<div class="cm-row">' + numField('pl-w', 'Larghezza', '') + numField('pl-h', 'Altezza', '') + '</div>' +
+      '<button type="button" class="link" id="pl-auto"' + (site.plateW == null && site.plateH == null ? ' hidden' : '') + '>Rimetti le misure automatiche</button>' +
+      '<div class="field"><span class="lbl">Colore del pannello</span><div class="pills" id="pcol">' + plColors.map(k => '<button type="button" class="pill pill-dot' + (plColor === k.id ? ' selected' : '') + '" data-v="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.label + '</button>').join('') + '</div></div>' +
+      '<div class="field"><span class="lbl">Logo dell\'attività sul pannello</span>' +
+        '<div class="choice-row"><span class="choice-ico pl-thumb"' + (plLogo ? ' style="background:' + esc(p.logoBg || '#FFFFFF') + '"><img src="' + plLogo + '" alt="">' : '>' ) + '</span><div class="choice-val"><strong>' + (plLogo ? (site.plateLogo ? 'Logo caricato qui' : 'Logo dello spot') : site.plateLogoOn === false && (site.plateLogo || p.logo) ? 'Logo tolto' : 'Nessun logo') + '</strong><small>' + (plLogo ? 'Puoi cambiarlo o toglierlo' : 'Caricalo: va al centro del pannello') + '</small></div></div>' +
+        '<div class="btn-row">' + (plLogo ? '<button type="button" class="btn btn-ghost btn-sm" id="pl-off">Togli</button>' : site.plateLogoOn === false && (site.plateLogo || p.logo) ? '<button type="button" class="btn btn-ghost btn-sm" id="pl-on">Rimetti</button>' : '') +
+        '<label class="btn btn-secondary btn-sm" for="pl-in">' + (plLogo ? 'Cambia logo' : 'Carica il logo') + '</label></div><input type="file" id="pl-in" accept="image/*" hidden></div>' +
+      (plLogo ? '<div class="field"><label class="lbl" for="pl-size">Grandezza del logo</label><div class="range-row"><input type="range" id="pl-size" min="25" max="100" step="1" value="' + (site.plateLogoSize != null ? site.plateLogoSize : 70) + '"><output id="pl-size-o">' + (site.plateLogoSize != null ? site.plateLogoSize : 70) + '%</output></div></div>' +
+        '<div class="field"><label class="lbl" for="pl-y">Posizione del logo</label><div class="range-row"><span class="small muted">Su</span><input type="range" id="pl-y" min="0" max="100" step="1" value="' + Math.round((site.plateLogoY != null ? site.plateLogoY : .5)*100) + '"><span class="small muted">Giù</span></div></div>' : '') +
+    '</div>';
+  const flagGroup = !needArm ? '' :
+    '<div class="group"><div class="group-title">Bandiera</div><div class="field"><span class="lbl">Dove si attacca al muro</span><div class="seg" id="fside"><button type="button" class="seg-btn' + (site.side === 'left' ? ' selected' : '') + '" data-v="left">Muro a sinistra</button><button type="button" class="seg-btn' + (site.side !== 'left' ? ' selected' : '') + '" data-v="right">Muro a destra</button></div></div>' +
+      '<div class="cm-row">' + numField('fl-arm', 'Lunghezza delle staffe', Math.round(site.arm != null ? site.arm : FLAG_ARM)) + '</div>' +
+      '<p class="help" style="margin:0">Dalla cornice dello schermo al muro. Puoi anche trascinare il rombo bianco fino al muro.</p></div>';
   app.innerHTML = topbar(siteStep(1), siteBars(1)) + heading('Dove va l\'insegna?') +
     '<div class="place-wrap" id="pwrap"><canvas id="pc" class="place-canvas"></canvas></div>' +
     '<p class="hint small center place-hint" id="phint" aria-live="polite"></p>' +
@@ -3406,9 +3546,10 @@ VIEWS.place = async function(){
       '<div class="seg" id="pmode"><button type="button" class="seg-btn' + (site.persp ? '' : ' selected') + '" data-v="lock">Dritta<small>sposti e ingrandisci</small></button><button type="button" class="seg-btn' + (site.persp ? ' selected' : '') + '" data-v="persp">Prospettiva<small>muovi ogni angolo</small></button></div>' +
       '<div class="btn-row"><button class="btn btn-secondary btn-sm" id="t-measure">Misura di riferimento</button><button class="btn btn-secondary btn-sm" id="t-straight">Raddrizza</button><button class="btn btn-secondary btn-sm" id="t-redraw">Ridisegna</button></div>' +
       '<p class="help" style="margin:0">Misura di riferimento: traccia una linea su qualcosa di cui conosci la misura (la porta, la vetrina) e l\'insegna prende la grandezza reale.</p></div>' +
-    '<div class="group"><div class="group-title">Struttura</div><div class="choice-row"><span class="choice-ico">' + structIcon(stId) + '</span><div class="choice-val"><strong>' + stDef.label + '</strong><small>' + stDef.hint + '</small></div><button type="button" class="btn btn-secondary btn-sm" id="st-pick">Cambia</button></div>' +
-      (needGround ? '<div class="field"><span class="lbl">Colore della struttura</span><div class="pills" id="scol">' + STRUCT_COLORS.map(k => '<button type="button" class="pill pill-dot' + ((site.color || 'black') === k.id ? ' selected' : '') + '" data-v="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.label + '</button>').join('') + '</div></div>' : '') +
+    '<div class="group"><div class="group-title">Struttura</div><div class="choice-row"><span class="choice-ico">' + structIcon(stId, isFlip) + '</span><div class="choice-val"><strong>' + stDef.label + '</strong><small>' + stDef.hint + '</small></div><button type="button" class="btn btn-secondary btn-sm" id="st-pick">Cambia</button></div>' +
+      (hasColor(stId) ? '<div class="field"><span class="lbl">Colore della struttura</span><div class="pills" id="scol">' + STRUCT_COLORS.map(k => '<button type="button" class="pill pill-dot' + ((site.color || 'black') === k.id ? ' selected' : '') + '" data-v="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.label + '</button>').join('') + '</div></div>' : '') +
       (needGround ? '<p class="help" style="margin:0">Trascina il rombo bianco fino al punto in cui la struttura tocca terra.</p>' : needTop ? '<p class="help" style="margin:0">Trascina il rombo bianco fino al soffitto o al punto in cui si agganciano i cavi.</p>' : '') + '</div>' +
+    panelGroup + flagGroup +
     '<div class="group"><div class="group-title">Foto dell\'attività</div><p class="help" style="margin:0">Se la tagli, la ruoti o la cambi dovrai riposizionare l\'insegna.</p><div class="btn-row"><button class="btn btn-secondary btn-sm" id="se-open">' + CROP_SVG + 'Taglia e sistema</button></div>' + siteUploadHTML('re', true) + '</div>' +
     '<div class="actionbar"><button class="btn btn-primary" id="next"' + (site.q ? '' : ' disabled') + '>Avanti: guarda il render</button></div>';
   bindTopbar(async () => { await saveNow(); go(spotView()); });
@@ -3426,10 +3567,15 @@ VIEWS.place = async function(){
   cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px'; cv.width = W; cv.height = H;
   const R = makeRender(p, W, H, img, 2);
   // struttura appena scelta: la base parte dentro la foto, così il rombo si può trascinare
-  if (R.geo && (needGround && site.ground == null || needTop && site.top == null)){
+  if (R.geo && (needGround && site.ground == null || needTop && site.top == null || needArm && site.arm == null)){
     const g = R.geo;
     if (needGround){ const pt = g.S(g.c.w/2, g.G); if (pt[1] > H*.95) site.ground = Math.round(clamp(g.yAlong([pt[0], H*.94], g.c.h) - g.c.h - g.f, 10, 500)); }
     if (needTop){ const pt = g.S(g.c.w/2, g.T); if (pt[1] < H*.04) site.top = Math.round(clamp(-g.f - g.yAlong([pt[0], H*.05], 0), 5, 400)); }
+    if (needArm){
+      const pt = g.S(g.wallX, g.c.h/2), right = g.side === 'right';
+      site.arm = FLAG_ARM;
+      if (right ? pt[0] > W*.97 : pt[0] < W*.03){ const x = g.xAlong([right ? W*.96 : W*.04, pt[1]], right ? g.c.w : 0); site.arm = Math.round(clamp(right ? x - g.c.w - g.f : -g.f - x, 5, 300)); }
+    }
     touch(); rebuildBase(R);
   }
   const seg0 = R.segs[0], tStill = seg0 ? clamp(2.2, 0, Math.max(0, seg0.dur - TR/2 - .05)) : 0;
@@ -3449,6 +3595,7 @@ VIEWS.place = async function(){
     const g = R.geo;
     if (needGround) out.push({ kind:'ground', pt: g.S(g.c.w/2, g.G) });
     if (needTop) out.push({ kind:'top', pt: g.S(g.c.w/2, g.T) });
+    if (needArm) out.push({ kind:'arm', pt: g.S(g.wallX, g.c.h/2) });
     return out;
   };
   const diamond = (pt, r) => { ctx.beginPath(); ctx.moveTo(pt[0], pt[1] - r); ctx.lineTo(pt[0] + r, pt[1]); ctx.lineTo(pt[0], pt[1] + r); ctx.lineTo(pt[0] - r, pt[1]); ctx.closePath(); };
@@ -3465,7 +3612,11 @@ VIEWS.place = async function(){
       if (!redrawing && !measuring){
         handles().forEach(h => {
           if (h.kind === 'corner'){ ctx.beginPath(); ctx.arc(h.pt[0], h.pt[1], 8*S, 0, Math.PI*2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 3*S; ctx.strokeStyle = '#000'; ctx.stroke(); }
-          else {
+          else if (h.kind === 'arm'){
+            const g = R.geo, a = g.S(g.wallX, -25), b = g.S(g.wallX, g.c.h + 25);
+            ctx.setLineDash([4*S, 4*S]); ctx.lineWidth = 1.5*S; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+            diamond(h.pt, 11*S); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 3*S; ctx.strokeStyle = '#000'; ctx.stroke();
+          } else {
             const g = R.geo, y = h.kind === 'ground' ? g.G : g.T, a = g.S(-25, y), b = g.S(g.c.w + 25, y);
             ctx.setLineDash([4*S, 4*S]); ctx.lineWidth = 1.5*S; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
             diamond(h.pt, 11*S); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 3*S; ctx.strokeStyle = '#000'; ctx.stroke();
@@ -3480,8 +3631,12 @@ VIEWS.place = async function(){
     }
     ctx.restore();
   };
-  const schedule = () => { if (!raf) raf = requestAnimationFrame(draw); };
-  hint(); draw();
+  const syncPlate = () => {
+    if (stId !== 'totemPanel' || !R.geo) return; const b = plateBox(R.geo, site);
+    [['#pl-w', b.pw], ['#pl-h', b.ph]].forEach(x => { const i = $(x[0]); if (i && document.activeElement !== i) i.value = Math.round(x[1]); });
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { draw(); syncPlate(); }); };
+  hint(); draw(); syncPlate();
 
   const toPx = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left)*W/r.width, (e.clientY - r.top)*H/r.height]; };
   const toNorm = q => q.map(pt => [pt[0]/W, pt[1]/H]);
@@ -3526,6 +3681,12 @@ VIEWS.place = async function(){
       }
       site.q = toNorm(q); schedule(); return;
     }
+    if (drag.kind === 'arm'){
+      const g = R.geo; if (!g) return; const right = g.side === 'right', x = g.xAlong(pt, right ? g.c.w : 0);
+      site.arm = Math.round(clamp(right ? x - g.c.w - g.f : -g.f - x, 5, 300));
+      const ai = $('#fl-arm'); if (ai && document.activeElement !== ai) ai.value = site.arm;
+      schedule(); return;
+    }
     if (drag.kind === 'ground' || drag.kind === 'top'){
       const g = R.geo; if (!g) return; const y = g.yAlong(pt, drag.kind === 'ground' ? g.c.h : 0);
       if (drag.kind === 'ground') site.ground = Math.round(clamp(y - g.c.h - g.f, 10, 500));
@@ -3561,7 +3722,29 @@ VIEWS.place = async function(){
   $('#t-redraw').onclick = () => { redrawing = true; measuring = false; site.q = null; $('#next').disabled = true; hint(); schedule(); };
   $('#t-measure').onclick = () => { if (!site.q){ toast('Prima indica dove va l\'insegna.'); return; } measuring = true; hint(); };
   $('#st-pick').onclick = () => openStructureSheet(() => go('place'));
-  $$('#scol .pill').forEach(b => b.onclick = () => { site.color = b.dataset.v; $$('#scol .pill').forEach(x => x.classList.toggle('selected', x === b)); touch(); schedule(); });
+  $$('#scol .pill').forEach(b => b.onclick = () => { site.color = b.dataset.v; touch(); go('place', { keepScroll:true }); });
+  // pannello sotto lo schermo
+  const numVal = (el, lo, hi) => { const v = parseFloat(String(el.value).replace(',', '.')); return isFinite(v) ? clamp(Math.round(v), lo, hi) : null; };
+  const plw = $('#pl-w'), plh = $('#pl-h');
+  if (plw){
+    plw.oninput = () => { const v = numVal(plw, 20, 600); if (v != null){ site.plateW = v; $('#pl-auto').hidden = false; touch(); schedule(); } };
+    plh.oninput = () => { const v = numVal(plh, 10, 500); if (v != null){ site.plateH = v; $('#pl-auto').hidden = false; touch(); schedule(); } };
+    const fix = () => { syncPlate(); }; plw.onblur = fix; plh.onblur = fix;
+    $('#pl-auto').onclick = () => { site.plateW = null; site.plateH = null; $('#pl-auto').hidden = true; touch(); schedule(); };
+    $$('#pcol .pill').forEach(b => b.onclick = () => { site.plateColor = b.dataset.v; $$('#pcol .pill').forEach(x => x.classList.toggle('selected', x === b)); touch(); schedule(); });
+    const off = $('#pl-off'); if (off) off.onclick = () => { site.plateLogoOn = false; touch(); go('place', { keepScroll:true }); };
+    const on = $('#pl-on'); if (on) on.onclick = () => { site.plateLogoOn = true; touch(); go('place', { keepScroll:true }); };
+    $('#pl-in').onchange = async e => {
+      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+      try { const r2 = await importImage(f, 800, 'image/png'); site.plateLogo = r2.dataUrl; site.plateLogoOn = true; await loadImg(site.plateLogo); touch(); await saveNow(); go('place', { keepScroll:true }); }
+      catch (err){ toast('Non riesco a leggere questo logo. Prova con un PNG o JPG.'); }
+    };
+    const sz = $('#pl-size'); if (sz) sz.oninput = () => { site.plateLogoSize = +sz.value; $('#pl-size-o').textContent = sz.value + '%'; touch(); schedule(); };
+    const ly = $('#pl-y'); if (ly) ly.oninput = () => { site.plateLogoY = +ly.value/100; touch(); schedule(); };
+  }
+  // bandiera
+  $$('#fside .seg-btn').forEach(b => b.onclick = () => { site.side = b.dataset.v; touch(); go('place', { keepScroll:true }); });
+  const fa = $('#fl-arm'); if (fa) fa.oninput = () => { const v = numVal(fa, 5, 300); if (v != null){ site.arm = v; touch(); schedule(); } };
   $('#next').onclick = async () => { if (!site.q) return; if (!site.structure) site.structure = 'none'; await saveNow(); go('render'); };
 }
 
@@ -3582,7 +3765,7 @@ VIEWS.render = async function(){
       '<div class="switch-row"><label for="sheen">Riflesso leggero sul pannello</label><input type="checkbox" class="switch" id="sheen"' + (p.fx.sheen ? ' checked' : '') + '></div></div>' +
     '<div class="setting"><span>Qualità video</span><div class="seg" id="qual">' + QUALITIES.map(q => { const d = dimsOf(q); return '<button type="button" class="seg-btn' + (p.quality === q.id ? ' selected' : '') + '" data-v="' + q.id + '">' + q.label + '<small>' + d.W + ' × ' + d.H + '</small></button>'; }).join('') + '</div></div>' +
     '<p class="hint small">MP4 da ' + p.duration + ' secondi, senza audio, nel formato della foto. Si apre su qualsiasi telefono.</p>' +
-    '<div class="settings-list"><button type="button" id="to-place"><span>Sposta l\'insegna</span><span class="v">' + esc(((STRUCTURES.find(x => x.id === (site.structure || 'none')) || STRUCTURES[0]).label)) + IC.chev + '</span></button>' +
+    '<div class="settings-list"><button type="button" id="to-place"><span>Sposta l\'insegna</span><span class="v">' + esc(((STRUCTURES.find(x => x.id === (structOf(site) || 'none')) || STRUCTURES[0]).label)) + IC.chev + '</span></button>' +
       '<button type="button" id="to-spot"><span>Modifica lo spot</span><span class="v">' + p.slides.length + ' ' + (p.slides.length === 1 ? 'contenuto' : 'contenuti') + IC.chev + '</span></button>' +
       '<button type="button" id="spot-dl"><span>Scarica solo lo spot</span><span class="v">' + signOf(p).w + ' × ' + signOf(p).h + IC.chev + '</span></button></div>' +
     '<div class="group"><div class="group-title">Prossimo passo: l\'offerta</div><p class="help" style="margin:0">Apri Horizon Offers con le misure di questa insegna (' + panelLabel(p) + ') e mostra al cliente i tre piani.</p>' + offersBtn(p, 'to-offers') + '</div>' +
@@ -3883,6 +4066,7 @@ async function createVideo(backTo){
   stopPlayer();
   try {
     const res = await exportVideo(p, pr => { const v = Math.round(clamp(pr, 0, 1)*100); fill.style.width = v + '%'; status.textContent = v + '%'; });
+    accEvent('export-spot', p.bizName || '');
     const name = fileName(p, res.ext);
     const file = (typeof File === 'function') ? new File([res.blob], name, { type: res.blob.type || 'video/mp4' }) : null;
     const canShare = !downloadsNS && file && navigator.canShare && (() => { try { return navigator.canShare({ files:[file] }); } catch (e){ return false; } })();
@@ -3913,6 +4097,7 @@ async function runRenderExport(){
   const fill = $('#ex-fill'), status = $('#ex-status');
   try {
     const res = await exportRender(p, pr => { const v = Math.round(clamp(pr, 0, 1)*100); fill.style.width = v + '%'; status.textContent = v + '%'; });
+    accEvent('export', p.bizName || '');
     const file = (typeof File === 'function') ? new File([res.blob], res.name, { type: res.blob.type || 'video/mp4' }) : null;
     const canShare = !downloadsNS && file && navigator.canShare && (() => { try { return navigator.canShare({ files:[file] }); } catch (e){ return false; } })();
     const size = res.blob.size > 1048576 ? num((res.blob.size/1048576).toFixed(1)) + ' MB' : Math.max(1, Math.round(res.blob.size/1024)) + ' KB';
@@ -3937,11 +4122,249 @@ async function runRenderExport(){
 }
 
 /* =====================================================================
+   ACCOUNT — amministratore → venditori, registro degli accessi
+   · Il sito si apre solo dopo l'accesso (la "portineria" è sul server, worker.js).
+   · L'amministratore apre, modifica, disattiva i venditori e cambia le password;
+     vede chi entra, da dove (IP, città, rete) e chi prova a entrare senza account.
+   I dati stanno sul server (/api/acc, Cloudflare): qui c'è solo l'interfaccia.
+   ===================================================================== */
+const ROLE_LABEL = { master:'Amministratore', seller:'Venditore' };
+let me = null;
+const Acc = {
+  async call(action, data){
+    let r, j = {};
+    try { r = await fetch('/api/acc', { method:'POST', headers:{ 'content-type':'application/json' }, credentials:'same-origin', body: JSON.stringify(Object.assign({ action }, data || {})) }); j = await r.json().catch(() => ({})); }
+    catch (e){ throw Object.assign(new Error('Connessione non riuscita. Controlla internet e riprova.'), { code:'net' }); }
+    if (r.status === 401 && action !== 'login'){ authLost(); }
+    if (!r.ok || j.error) throw Object.assign(new Error(j.error || 'Qualcosa non ha funzionato. Riprova tra poco.'), { code: j.code });
+    return j;
+  }
+};
+// Sessione finita (scaduta, account disattivato, password cambiata): si torna alla pagina "Accedi".
+let authLostOnce = false;
+function authLost(){ if (authLostOnce) return; authLostOnce = true; toast('Devi accedere di nuovo.'); setTimeout(() => location.replace('/'), 900); }
+async function accRefresh(){ try { me = (await Acc.call('me')).user || null; return me ? 'ok' : 'none'; } catch (e){ me = null; return e.code === 'net' ? 'net' : 'none'; } }
+const accEvent = (type, info) => { if (me) Acc.call('event', { type, info }).catch(() => {}); };
+const initials = n => String(n || '').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+function normPhone(v){ let d = String(v || '').replace(/\D/g, ''); if (d.indexOf('00') === 0) d = d.slice(2); if (d.length === 10 && d[0] === '3') d = '39' + d; return d; }
+const phoneOk = d => /^\d{11,15}$/.test(d);
+function fmtPhone(v){
+  const d = String(v || '').replace(/\D/g, ''); if (!d) return '';
+  const it = d.length >= 11 && d.indexOf('39') === 0, n = it ? d.slice(2) : d;
+  const g = n.length === 10 ? n.slice(0, 3) + ' ' + n.slice(3, 6) + ' ' + n.slice(6) : n.replace(/(\d{3})(?=\d)/g, '$1 ');
+  return (it ? '+39 ' : '+') + g;
+}
+const WA_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" style="fill:currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.8-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.8-.4z"/></svg>';
+const appUrl = () => location.origin + '/';
+function credsText(u, password){
+  return 'Ciao ' + u.name.split(' ')[0] + '! Ecco il tuo accesso a Horizon Render, per mostrare ai clienti la loro attività con l\'insegna LED montata.\n\n' +
+    appUrl() + '\nNome utente: ' + u.username + '\nPassword: ' + password + '\n\nLe credenziali sono personali: non passarle ad altri. Gli accessi vengono registrati.';
+}
+const credsHref = (u, password) => 'https://wa.me/' + (u.phone || '') + '?text=' + encodeURIComponent(credsText(u, password));
+async function copyText(t){ try { await navigator.clipboard.writeText(t); toast('Copiato'); } catch (e){ toast('Non riesco a copiare: seleziona il testo a mano.'); } }
+
+function accBtnHTML(){ return me ? '<button type="button" class="acc-btn" id="acc-btn" aria-label="Il tuo account: ' + esc(me.name) + '">' + esc(initials(me.name)) + '</button>' : ''; }
+function bindAccChrome(){ const b = $('#acc-btn'); if (b) b.onclick = openAccount; }
+async function logout(){
+  try { await Acc.call('logout'); } catch (e){}
+  try { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage('logout'); if (window.caches) (await caches.keys()).forEach(k => caches.delete(k)); } catch (e){}
+  location.replace('/');
+}
+
+/* ---------- pannello del proprio account (tocco sul tondo in alto a destra) ---------- */
+function openAccount(){
+  if (!me) return;
+  const master = me.role === 'master';
+  const rows = [['Nome utente', me.username], ['WhatsApp', me.phone ? fmtPhone(me.phone) : '—']];
+  modalRoot.innerHTML = '<div class="overlay sheet-overlay" id="sheet-ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Il tuo account"><div class="sheet-head"><div class="acc-head"><span class="acc-ava">' + esc(initials(me.name)) + '</span><div><h3>' + esc(me.name) + '</h3><p class="hint">' + ROLE_LABEL[me.role] + '</p></div></div><button class="icon-btn" id="sheet-x" aria-label="Chiudi">' + IC.x + '</button></div>' +
+    '<div class="summary">' + rows.map(r => '<div><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('') + '</div>' +
+    (master ? '<button class="btn btn-primary btn-block" id="acc-manage">Gestisci venditori</button><button class="btn btn-secondary btn-block" id="acc-log">Registro accessi</button>' : '') +
+    '<button class="btn btn-secondary btn-block" id="acc-profile">Il mio profilo e password</button>' +
+    '<button class="btn btn-ghost btn-block" id="acc-out">Esci</button></div></div>';
+  $('#sheet-x').onclick = closeModal; $('#sheet-ov').onclick = e => { if (e.target.id === 'sheet-ov') closeModal(); };
+  const m = $('#acc-manage'); if (m) m.onclick = () => { closeModal(); go('accounts'); };
+  const lg = $('#acc-log'); if (lg) lg.onclick = () => { closeModal(); go('accLog'); };
+  $('#acc-profile').onclick = () => openProfile(() => openAccount());
+  $('#acc-out').onclick = logout;
+}
+
+/* ---------- il mio profilo: nome, WhatsApp, password ---------- */
+function openProfile(after){
+  modalRoot.innerHTML = '<div class="overlay sheet-overlay" id="sheet-ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="Il mio profilo"><div class="sheet-head"><div><h3>Il mio profilo</h3><p class="hint">Se cambi la password, gli altri dispositivi collegati al tuo account escono.</p></div><button class="icon-btn" id="sheet-x" aria-label="Chiudi">' + IC.x + '</button></div>' +
+    '<form class="stack" id="pf-form" style="gap:16px" novalidate>' +
+      '<div class="field"><label class="lbl" for="pf-name">Nome e cognome</label><input class="input" id="pf-name" autocomplete="name" value="' + esc(me.name) + '"></div>' +
+      '<div class="field"><label class="lbl" for="pf-phone">Numero WhatsApp <span class="opt">(facoltativo)</span></label><input class="input" id="pf-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Es. 333 123 4567" value="' + esc(me.phone ? fmtPhone(me.phone) : '') + '"></div>' +
+      '<div class="field"><label class="lbl" for="pf-pass">Nuova password <span class="opt">(facoltativo)</span></label><p class="help">Lascia vuoto per tenere quella di adesso.</p><input class="input" id="pf-pass" type="text" autocomplete="new-password" autocapitalize="off" spellcheck="false"></div>' +
+      '<p class="warn" id="pf-err" hidden></p><button class="btn btn-primary btn-block" type="submit">Salva</button></form></div></div>';
+  $('#sheet-x').onclick = closeModal; $('#sheet-ov').onclick = e => { if (e.target.id === 'sheet-ov') closeModal(); };
+  $('#pf-form').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('#pf-name').value.trim(), rawPhone = $('#pf-phone').value.trim(), phone = normPhone(rawPhone), pass = $('#pf-pass').value.trim(), err = $('#pf-err');
+    const bad = !name ? 'Scrivi nome e cognome.' : rawPhone && !phoneOk(phone) ? 'Il numero WhatsApp non sembra giusto: scrivilo con il prefisso, es. 333 123 4567.' : pass && pass.length < 6 ? 'La password deve avere almeno 6 caratteri.' : '';
+    if (bad){ err.textContent = bad; err.hidden = false; return; }
+    try { await Acc.call('saveMe', { name, phone: rawPhone ? phone : '', password: pass || null }); await accRefresh(); toast(pass ? 'Profilo e password salvati' : 'Profilo salvato'); closeModal(); if (after) after(); }
+    catch (x){ err.textContent = x.message; err.hidden = false; }
+  };
+}
+
+/* ---------- apri o modifica un venditore ---------- */
+const genPass = () => { const c = 'abcdefghjkmnpqrstuvwxyz23456789'; let p = ''; const r = crypto.getRandomValues(new Uint32Array(10)); for (let i = 0; i < 10; i++) p += c[r[i] % c.length]; return p; };
+function openUserSheet(u, onSaved){
+  const isNew = !u;
+  u = u || { name:'', username:'', phone:'', active:true };
+  const title = isNew ? 'Nuovo venditore' : 'Modifica venditore';
+  modalRoot.innerHTML = '<div class="overlay sheet-overlay" id="sheet-ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="' + title + '"><div class="sheet-head"><div><h3>' + title + '</h3><p class="hint">' + (isNew ? 'Il venditore entra con nome utente e password. Le credenziali sono personali.' : 'Se cambi la password o disattivi l\'account, il venditore esce subito da tutti i dispositivi.') + '</p></div><button class="icon-btn" id="sheet-x" aria-label="Chiudi">' + IC.x + '</button></div>' +
+    '<form class="stack" id="u-form" style="gap:16px" novalidate>' +
+      '<div class="field"><label class="lbl" for="u-name">Nome e cognome</label><input class="input" id="u-name" autocomplete="off" placeholder="Es. Mattia De Bellis" value="' + esc(u.name) + '"></div>' +
+      '<div class="field"><label class="lbl" for="u-user">Nome utente</label><p class="help">Serve per entrare. Senza spazi.</p><input class="input" id="u-user" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="Es. mattia" value="' + esc(u.username) + '"></div>' +
+      '<div class="field"><div class="lbl"><label for="u-pass">' + (isNew ? 'Password' : 'Nuova password <span class="opt">(facoltativo)</span>') + '</label></div>' + (isNew ? '' : '<p class="help">Lascia vuoto per non cambiarla.</p>') + '<div class="pass-wrap"><input class="input" id="u-pass" autocapitalize="off" spellcheck="false" autocomplete="new-password"><button type="button" class="link" id="u-gen">Genera</button></div></div>' +
+      '<div class="field"><label class="lbl" for="u-phone">WhatsApp del venditore <span class="opt">(facoltativo)</span></label><p class="help">Per mandargli le credenziali con un tocco.</p><input class="input" id="u-phone" type="tel" inputmode="tel" placeholder="Es. 333 123 4567" value="' + esc(u.phone ? fmtPhone(u.phone) : '') + '"></div>' +
+      (isNew ? '' : '<div class="switch-row"><label for="u-active">Account attivo</label><input type="checkbox" class="switch" id="u-active"' + (u.active ? ' checked' : '') + '></div>') +
+      '<p class="warn" id="u-err" hidden></p><button class="btn btn-primary btn-block" type="submit">' + (isNew ? 'Apri l\'account' : 'Salva') + '</button></form></div></div>';
+  $('#sheet-x').onclick = closeModal; $('#sheet-ov').onclick = e => { if (e.target.id === 'sheet-ov') closeModal(); };
+  $('#u-gen').onclick = () => { $('#u-pass').value = genPass(); };
+  if (isNew) $('#u-pass').value = genPass();
+  $('#u-form').onsubmit = async e => {
+    e.preventDefault();
+    const err = $('#u-err'), fail = m => { err.textContent = m; err.hidden = false; err.scrollIntoView({ block:'nearest' }); };
+    const name = $('#u-name').value.trim(), username = $('#u-user').value.trim(), rawPhone = $('#u-phone').value.trim(), phone = normPhone(rawPhone), password = $('#u-pass').value.trim();
+    if (!name) return fail('Scrivi nome e cognome.');
+    if (!/^[a-z0-9._-]{3,30}$/i.test(username)) return fail('Il nome utente: almeno 3 caratteri, senza spazi.');
+    if (isNew && password.length < 6) return fail('La password deve avere almeno 6 caratteri (puoi usare "Genera").');
+    if (!isNew && password && password.length < 6) return fail('La nuova password deve avere almeno 6 caratteri.');
+    if (rawPhone && !phoneOk(phone)) return fail('Il WhatsApp non sembra giusto: scrivilo con il prefisso, es. 333 123 4567.');
+    const data = { id: u.id || null, name, username, phone: rawPhone ? phone : '', password: password || null, active: isNew ? true : $('#u-active').checked };
+    try {
+      const saved = (await Acc.call('save', { user: data })).user;
+      toast(isNew ? 'Account aperto' : 'Modifiche salvate');
+      if (isNew || password) offerCreds(saved, password, isNew, onSaved);
+      else { closeModal(); onSaved(); }
+    } catch (x){ fail(x.message); }
+  };
+}
+// Subito dopo l'apertura (o il cambio password): le credenziali pronte da mandare.
+function offerCreds(u, password, isNew, onDone){
+  modalRoot.innerHTML = '<div class="overlay"><div class="modal" role="dialog" aria-modal="true">' + MARK + '<h3>' + (isNew ? 'Account aperto' : 'Password cambiata') + '</h3><p>' + esc(u.name) + (isNew ? ' ora può entrare in Horizon Render.' : ' deve rientrare con la nuova password.') + '</p>' +
+    '<div class="summary" style="margin:12px 0"><div><span>Indirizzo</span><span>' + esc(location.host) + '</span></div><div><span>Nome utente</span><span>' + esc(u.username) + '</span></div><div><span>Password</span><span>' + esc(password) + '</span></div></div>' +
+    '<p class="hint small">Annotala ora: per sicurezza la password non si può più rivedere, solo cambiare.</p>' +
+    '<div class="stack" style="gap:8px">' + (u.phone ? '<a class="btn btn-primary btn-block" id="cr-send" href="' + esc(credsHref(u, password)) + '" target="_blank" rel="noopener">' + WA_SVG + 'Invia su WhatsApp</a>' : '') +
+    '<button class="btn btn-secondary btn-block" id="cr-copy">Copia le credenziali</button><button class="btn btn-ghost btn-block" id="cr-close">Fatto</button></div></div></div>';
+  $('#cr-close').onclick = () => { closeModal(); onDone(); };
+  $('#cr-copy').onclick = () => copyText(credsText(u, password));
+}
+
+/* ---------- testi per il registro ---------- */
+const EV_LABEL = {
+  login:'Accesso', open:'Ha aperto il sito', logout:'Uscito', fail:'Accesso sbagliato', blocked:'Bloccato: troppi tentativi', off:'Ha provato a entrare (account disattivato)',
+  visit:'Visita senza account', kicked:'Scollegato', created:'Account aperto', disabled:'Account disattivato', enabled:'Account riattivato', password:'Password cambiata',
+  export:'Ha scaricato un render', 'export-spot':'Ha scaricato uno spot'
+};
+const EV_BAD = { fail:1, blocked:1, off:1, visit:1 };
+const COUNTRY = { IT:'Italia', AL:'Albania', RO:'Romania', DE:'Germania', FR:'Francia', ES:'Spagna', CH:'Svizzera', GB:'Regno Unito', US:'Stati Uniti', NL:'Paesi Bassi', CN:'Cina', RU:'Russia', IN:'India', SG:'Singapore', IE:'Irlanda' };
+function deviceOf(ua){
+  ua = String(ua || ''); if (!ua) return '';
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : '';
+  const br = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : /bot|crawl|spider|curl|python|wget/i.test(ua) ? 'Programma automatico' : '';
+  return [os, br].filter(Boolean).join(' · ') || 'Dispositivo sconosciuto';
+}
+const placeOf = r => [r.city, r.country && r.country !== 'IT' ? (COUNTRY[r.country] || r.country) : (r.city ? '' : 'Italia')].filter(Boolean).join(', ');
+const whenOf = ts => { const d = new Date(ts), t = new Date(), y = new Date(Date.now() - 86400000), hm = d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  return d.toDateString() === t.toDateString() ? 'Oggi ' + hm : d.toDateString() === y.toDateString() ? 'Ieri ' + hm : d.toLocaleDateString('it-IT', { day:'numeric', month:'short' }) + ' ' + hm; };
+const agoOf = ts => !ts ? 'mai' : whenOf(ts).replace(/^Oggi /, 'oggi alle ').replace(/^Ieri /, 'ieri alle ');
+
+/* ---------- gestione venditori (solo amministratore) ---------- */
+VIEWS.accounts = async function(){
+  if (!me || me.role !== 'master'){ go('home'); return; }
+  let users = [];
+  try { users = (await Acc.call('list')).users || []; } catch (e){ toast(e.message); }
+  const sellers = users.filter(x => x.role === 'seller');
+  const flags = x => {
+    const f = [];
+    if (x.abroad) f.push('Accessi dall\'estero: ' + x.abroad.split(',').map(c => COUNTRY[c] || c).join(', '));
+    if (x.ips7 >= 5) f.push(x.ips7 + ' indirizzi IP diversi in 7 giorni');
+    if (x.fails7 >= 3) f.push(x.fails7 + ' password sbagliate in 7 giorni');
+    return f;
+  };
+  const item = x => {
+    const fl = flags(x);
+    return '<li class="acc-item' + (x.active ? '' : ' off') + '" data-q="' + esc((x.name + ' ' + x.username).toLowerCase()) + '"><span class="acc-ava sm">' + esc(initials(x.name)) + '</span>' +
+      '<div class="spot-meta"><strong>' + esc(x.name) + '</strong><small>' + esc(x.username) + ' · ' + (x.active ? 'ultimo accesso ' + agoOf(x.lastLogin) : '<b>Disattivato</b>') +
+        (x.active ? '<br>' + (x.devices ? x.devices + (x.devices === 1 ? ' dispositivo collegato' : ' dispositivi collegati') : 'nessun dispositivo collegato') : '') + '</small>' +
+        (fl.length ? '<span class="acc-flag">' + fl.map(esc).join('<br>') + '</span>' : '') + '</div>' +
+      '<div class="spot-actions"><button class="btn btn-secondary btn-sm" data-edit-u="' + x.id + '">Modifica</button>' +
+        '<button class="btn btn-secondary btn-sm" data-log-u="' + x.id + '">Accessi</button>' +
+        (x.active && x.devices ? '<button class="btn btn-ghost btn-sm" data-kick="' + x.id + '">Scollega</button>' : '') + '</div></li>';
+  };
+  app.innerHTML = topbar('Venditori') +
+    heading('Venditori.', 'Ogni venditore ha il suo account. Puoi disattivarlo, cambiargli la password o scollegarlo da tutti i dispositivi.') +
+    '<button type="button" class="choice-row prof-card" id="to-log"><span class="choice-val"><strong>Registro accessi</strong><small>Chi entra, da dove e chi prova a entrare senza account</small></span>' + IC.chev + '</button>' +
+    (sellers.length > 4 ? '<input class="input" id="acc-q" type="search" placeholder="Cerca per nome" autocomplete="off">' : '') +
+    (sellers.length ? '<ul class="spot-list acc-list" id="acc-list">' + sellers.map(item).join('') + '</ul><p class="empty" id="acc-none" hidden>Nessun risultato.</p>'
+      : '<div class="empty">Nessun venditore. Apri il primo con il tasto qui sotto.</div>') +
+    '<p class="hint small">Ogni venditore può restare collegato al massimo da 3 dispositivi: se entra da un quarto, il più vecchio esce. Se vedi accessi strani, cambia la password.</p>' +
+    '<div class="actionbar"><button class="btn btn-primary" id="acc-new">' + IC.plus + 'Nuovo venditore</button></div>';
+  const again = () => go('accounts', { keepScroll:true });
+  bindTopbar(() => go('home'));
+  $('#to-log').onclick = () => go('accLog', { from:'accounts' });
+  const q = $('#acc-q'); if (q) q.oninput = () => { const t = q.value.trim().toLowerCase(); let n = 0; $$('#acc-list .acc-item').forEach(li => { const ok = !t || li.dataset.q.indexOf(t) > -1; li.hidden = !ok; if (ok) n++; }); $('#acc-none').hidden = n > 0; };
+  $('#acc-new').onclick = () => openUserSheet(null, again);
+  $$('[data-edit-u]').forEach(b => b.onclick = () => openUserSheet(users.find(x => x.id === b.dataset.editU), again));
+  $$('[data-log-u]').forEach(b => b.onclick = () => go('accLog', { userId: b.dataset.logU, from:'accounts' }));
+  $$('[data-kick]').forEach(b => b.onclick = async () => {
+    const u = users.find(x => x.id === b.dataset.kick);
+    if (!(await confirmBox('Scollegare ' + u.name + '?', 'Esce da tutti i dispositivi e dovrà rientrare con la password. Se pensi che l\'abbia data a qualcun altro, cambiagli anche la password.', 'Scollega'))) return;
+    try { await Acc.call('kick', { id: u.id }); toast(u.name + ' è stato scollegato'); again(); } catch (e){ toast(e.message); }
+  });
+};
+function confirmBox(title, text, okLabel){
+  return new Promise(res => {
+    modalRoot.innerHTML = '<div class="overlay"><div class="modal" role="dialog" aria-modal="true"><h3>' + esc(title) + '</h3><p>' + esc(text) + '</p><div class="stack" style="gap:8px;margin-top:12px"><button class="btn btn-primary btn-block" id="cf-ok">' + esc(okLabel) + '</button><button class="btn btn-ghost btn-block" id="cf-no">Annulla</button></div></div></div>';
+    $('#cf-ok').onclick = () => { closeModal(); res(true); }; $('#cf-no').onclick = () => { closeModal(); res(false); };
+  });
+}
+
+/* ---------- registro accessi (solo amministratore) ---------- */
+VIEWS.accLog = async function(){
+  if (!me || me.role !== 'master'){ go('home'); return; }
+  const filter = params.filter || 'all', userId = params.userId || null, ip = params.ip || null;
+  let data = { rows:[], summary:{} }, users = [];
+  try { [data, users] = await Promise.all([Acc.call('log', { filter, userId, ip, limit: params.limit || 150 }), Acc.call('list').then(r => r.users || [])]); } catch (e){ toast(e.message); }
+  const who = userId && users.find(x => x.id === userId), s = data.summary || {};
+  const row = r => {
+    const okVisit = r.event === 'visit' && r.known, bad = (EV_BAD[r.event] && !okVisit) || (r.event === 'kicked' && /più di/.test(r.info || ''));
+    const name = r.user_name || (r.tried ? 'Sconosciuto: ha scritto «' + r.tried + '»' : okVisit ? 'Pagina "Accedi" (da questo IP poi è entrato un venditore)' : 'Nessun account: non è mai entrato');
+    const admin = ['created','disabled','enabled'].indexOf(r.event) > -1 || (r.event === 'password' && /da (?!sé)/.test(r.info || '')) || (r.event === 'kicked' && /da /.test(r.info || '') && !/più di/.test(r.info || ''));
+    return '<li class="log-item' + (bad ? ' bad' : '') + '"><div class="log-top"><strong>' + esc(EV_LABEL[r.event] || r.event) + '</strong><span>' + esc(whenOf(r.ts)) + '</span></div>' +
+      '<div class="log-who">' + esc(name) + (r.info && r.event !== 'visit' ? ' · <span class="muted">' + esc(r.info) + '</span>' : '') + '</div>' +
+      (admin ? '' : '<div class="log-where"><button type="button" class="log-ip" data-ip="' + esc(r.ip) + '">' + esc(r.ip || 'IP sconosciuto') + '</button>' + esc([placeOf(r), r.org, deviceOf(r.ua)].filter(Boolean).join(' · ')) + '</div>') + '</li>';
+  };
+  const FILTERS = [['all', 'Tutto'], ['logins', 'Accessi'], ['problems', 'Problemi'], ['visits', 'Estranei']];
+  app.innerHTML = topbar('Registro accessi') +
+    heading(who ? who.name + '.' : ip ? 'IP ' + ip + '.' : 'Registro accessi.', who ? 'Tutti gli accessi di questo account, con indirizzo IP, città, rete e dispositivo.' : ip ? 'Tutto quello che è arrivato da questo indirizzo IP.' : 'Chi entra in Horizon Render, da dove, e chi prova a entrare senza essere abilitato.') +
+    (!who && !ip ? '<div class="log-sum"><div><b>' + (s.logins || 0) + '</b><span>accessi</span></div><div' + (s.fails ? ' class="bad"' : '') + '><b>' + (s.fails || 0) + '</b><span>password sbagliate</span></div><div' + (s.visitIps ? ' class="bad"' : '') + '><b>' + (s.visitIps || 0) + '</b><span>IP senza account</span></div><div><b>' + (s.exports || 0) + '</b><span>render scaricati</span></div></div><p class="hint small" style="margin-top:-8px">Ultimi 7 giorni.</p>' : '') +
+    (who || ip ? '<button class="btn btn-secondary btn-sm" id="log-allx" style="align-self:flex-start">Mostra tutti</button>' : '') +
+    '<div class="seg" id="log-f">' + FILTERS.map(f => '<button type="button" class="seg-btn' + (f[0] === filter ? ' selected' : '') + '" data-f="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
+    (data.rows.length ? '<ul class="log-list">' + data.rows.map(row).join('') + '</ul>' : '<div class="empty">Nessuna voce.</div>') +
+    (data.more ? '<button class="btn btn-secondary btn-block" id="log-more">Mostra più vecchi</button>' : '') +
+    '<p class="hint small">"Estranei": indirizzi IP che hanno aperto il sito ma da cui non è mai entrato nessun venditore (link inoltrato, curiosi, programmi automatici). "Problemi": password sbagliate, account disattivati, estranei e venditori collegati da troppi dispositivi. Tocca un indirizzo IP per vedere tutto quello che ha fatto. Il registro tiene gli ultimi 6 mesi.</p>';
+  bindTopbar(() => go(params.from === 'accounts' ? 'accounts' : 'home'));
+  const keep = { userId, ip, from: params.from };
+  $$('#log-f .seg-btn').forEach(b => b.onclick = () => go('accLog', Object.assign({}, keep, { filter: b.dataset.f })));
+  $$('.log-ip').forEach(b => b.onclick = () => { if (b.dataset.ip) go('accLog', { ip: b.dataset.ip, from: params.from }); });
+  const ax = $('#log-allx'); if (ax) ax.onclick = () => go('accLog', { filter, from: params.from });
+  const mo = $('#log-more'); if (mo) mo.onclick = () => go('accLog', Object.assign({}, keep, { filter, limit: 300, keepScroll:true }));
+};
+
+/* =====================================================================
    AVVIO
    ===================================================================== */
 let rsT = 0, placeWidth = 0;
 window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { const w = $('#pwrap'); if (view === 'place' && w && Math.abs(w.clientWidth - placeWidth) > 40 && !modalRoot.innerHTML) go('place'); }, 300); });
-go('home');
+// Senza accesso il server mostra solo la pagina "Accedi": qui si controlla chi è entrato.
+accRefresh().then(st => {
+  if (st === 'none'){ location.replace('/'); return; }   // sessione finita: torna alla pagina "Accedi"
+  go('home');                                            // 'net' = senza connessione: si lavora lo stesso
+});
 if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude\.ai|claudeusercontent/.test(location.hostname)){
   window.addEventListener('load', () => { navigator.serviceWorker.register('service-worker.js').catch(() => {}); });
 }

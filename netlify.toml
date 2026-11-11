@@ -1,6 +1,10 @@
-# Horizon Render — configurazione Netlify
-# Il sito è statico (cartella "public"); la funzione "gate" (netlify/edge-functions)
-# gestisce la ricerca online.
+# Horizon Render non sta più su Netlify (ora è su Cloudflare, con l'accesso dei venditori).
+# Se il vecchio sito Netlify è ancora collegato a questo repository, pubblica solo una pagina
+# che rimanda al nuovo indirizzo: così non resta aperta una copia del sito senza accesso.
 [build]
-  publish = "public"
-  command = "echo Nessuna build necessaria"
+  publish = "netlify-chiuso"
+  command = "echo Sito spostato su Cloudflare"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -570,6 +570,13 @@ html.desk .app.two .actionbar{position:static;margin:0;padding:12px 0 20px;backg
 .group .link{align-self:flex-start;padding:4px 0;font-size:15px;text-decoration:underline;text-underline-offset:2px;}
 .muted{color:var(--muted);}
 .range-row .small{font-size:13px;flex:0 0 auto;}
+.sheet-wrap{width:100%;border-radius:18px;overflow:hidden;background:#F4F4F1;}
+.sheet-cv{display:block;}
+.parts{margin:0;padding-left:20px;font-size:15px;line-height:1.5;}
+.cu-sel{background:var(--bg);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 0 0 2px #FFD60A;}
+.cu-sel-head{display:flex;justify-content:space-between;align-items:baseline;}
+.cu-sel-head span{color:var(--muted);font-variant-numeric:tabular-nums;}
+.cu-del{color:var(--danger);}
 </style>
 </head>
 <body>
@@ -1765,13 +1772,14 @@ const STRUCTURES = [
   { id:'totem',      label:'Totem autoportante',       hint:'Struttura in ferro con due gambe e base' },
   { id:'totemPanel', label:'Totem con pannello sotto', hint:'Le due gambe coperte da un pannello con il logo dell\'attività' },
   { id:'flag',       label:'Bandiera a muro',          hint:'Staffe laterali fissate al muro, a sinistra o a destra' },
-  { id:'hang',       label:'Appeso con cavi',          hint:'Sospeso in vetrina con cavi d\'acciaio' }
+  { id:'hang',       label:'Appeso con cavi',          hint:'Sospeso in vetrina con cavi d\'acciaio' },
+  { id:'custom',     label:'Struttura personalizzata', hint:'Disegni tu tubolari, cavi e piastre: dritti, obliqui, di lato' }
 ];
 const STRUCT_DEFAULTS = { totem:{ ground:80 }, totemPanel:{ ground:80 }, hang:{ top:70 } };
-const FRAME_CM = { none:2, totem:5, totemPanel:5, flag:3.5, hang:2.5 };   // spessore della cornice
+const FRAME_CM = { none:2, totem:5, totemPanel:5, flag:3.5, hang:2.5, custom:4 };   // spessore della cornice
 const FLAG_ARM = 30;                                                     // cm di staffa tra la cornice e il muro
 const hasGround = st => st === 'totem' || st === 'totemPanel';
-const hasColor = st => st === 'totem' || st === 'totemPanel' || st === 'flag';
+const hasColor = st => st === 'totem' || st === 'totemPanel' || st === 'flag' || st === 'custom';
 // Render salvati con le strutture tolte (palo, due pali): diventano totem autoportante.
 const structOf = site => { const st = site && site.structure; return st === 'pole' || st === 'poles' ? 'totem' : STRUCTURES.some(x => x.id === st) ? st : (st ? 'none' : null); };
 const STRUCT_COLORS = [
@@ -1935,6 +1943,8 @@ function drawStructure(ctx, g, p){
     rectCm(ctx, g, px0, py0, px1, py1); ctx.fillStyle = shade(col, -.15); ctx.fill(); ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     ys.forEach(y => { [y - 5, y + 5].forEach(yy => { const q = g.S((px0 + px1)/2, yy); ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(.8, g.pxPerCm*.6), 0, Math.PI*2); ctx.fill(); }); });
+  } else if (st === 'custom'){
+    (site.bars || []).forEach(b => drawPartPhoto(ctx, g, b, col));   // disegnati prima della cornice: quello che sta dietro lo schermo resta nascosto
   } else if (st === 'hang'){
     ctx.lineWidth = Math.max(1.4, g.pxPerCm*.45); ctx.strokeStyle = 'rgba(225,229,235,.95)'; ctx.lineCap = 'round';
     [Math.min(8, w*.12), w - Math.min(8, w*.12)].forEach(x => {
@@ -1954,6 +1964,219 @@ function drawStructure(ctx, g, p){
   polyCm(ctx, g, out); ctx.fillStyle = gr; ctx.fill();
   polyCm(ctx, g, [[0,0],[w,0],[w,h],[0,h]]); ctx.fillStyle = '#060607'; ctx.fill();
   ctx.restore();
+}
+/* ---------- Struttura personalizzata: pezzi disegnati a mano (in cm, rispetto al pannello) ---------- */
+// Ogni pezzo è un segmento a → b (cm, origine in alto a sinistra del pannello) con uno spessore t (cm).
+const CUSTOM_KINDS = [
+  { id:'tube',  label:'Tubolare', name:'Tubolare',        t:4,  min:2,  max:12, step:.5 },
+  { id:'cable', label:'Cavo',     name:'Cavo d\'acciaio', t:.6, min:.3, max:1.5, step:.1 },
+  { id:'plate', label:'Piastra',  name:'Piastra',         t:8,  min:3,  max:40, step:1 }
+];
+const kindOf = id => CUSTOM_KINDS.find(k => k.id === id) || CUSTOM_KINDS[0];
+// Stato dell'editor (resta tra un ridisegno e l'altro della schermata).
+const customUI = { tool:'tube', drawing:false, sel:-1, straight:false, undo:[] };
+function customPush(site){ customUI.undo.push(JSON.stringify(site.bars || [])); if (customUI.undo.length > 40) customUI.undo.shift(); }
+// Modelli da cui partire: poi si modifica tutto a mano.
+function customTemplate(id, p){
+  const c = panelCm(p), w = c.w, h = c.h, f = FRAME_CM.custom, B = (kind, a, b, t) => ({ kind, a, b, t: t || kindOf(kind).t });
+  if (id === 'totem'){ const G = h + f + 80, x1 = w*.15, x2 = w*.85; return [B('tube', [x1, h*.1], [x1, G - 4], 5), B('tube', [x2, h*.1], [x2, G - 4], 5), B('tube', [x1, h*.5], [x2, h*.5], 3), B('plate', [-12, G - 2], [w + 12, G - 2], 4)]; }
+  if (id === 'flagR' || id === 'flagL'){
+    const r = id === 'flagR', X = r ? w + f + 30 : -f - 30, x0 = r ? w*.3 : w*.7, px = X + (r ? 1.5 : -1.5);
+    return [B('tube', [x0, h*.2], [X, h*.2]), B('tube', [x0, h*.8], [X, h*.8]), B('plate', [px, h*.2 - 10], [px, h*.8 + 10], 3)];
+  }
+  // braccio a muro con saetta: il tubolare obliquo parte dal muro più in basso e regge il braccio
+  if (id === 'diag'){ const X = w + f + 60, y = h*.25; return [B('tube', [w*.4, y], [X, y]), B('tube', [X, y + 55], [w + f + 6, y]), B('plate', [X + 1.5, y - 12], [X + 1.5, y + 67], 3)]; }
+  if (id === 'cables'){ const x1 = Math.min(8, w*.12), x2 = w - x1; return [B('cable', [x1, -f], [x1, -f - 70]), B('cable', [x2, -f], [x2, -f - 70])]; }
+  return [];
+}
+const segLen = b => Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1]);
+function segPoly(a, b, t){ const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy/L*t/2, ny = dx/L*t/2; return [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]]; }
+// Dalla foto (pixel) ai cm del pannello: omografia inversa, poi qualche passo di correzione (la struttura fuori dal pannello prosegue dritta).
+function sInv(g, pt){
+  const q = hApply(g.inv, pt[0], pt[1]); let x = q[0]*g.c.w, y = q[1]*g.c.h;
+  for (let i = 0; i < 5; i++){
+    const s = g.S(x, y), e = .5, sx = g.S(x + e, y), sy = g.S(x, y + e);
+    const a = (sx[0] - s[0])/e, b = (sy[0] - s[0])/e, c = (sx[1] - s[1])/e, d = (sy[1] - s[1])/e, det = a*d - b*c; if (!det) break;
+    const rx = pt[0] - s[0], ry = pt[1] - s[1]; x += (d*rx - b*ry)/det; y += (-c*rx + a*ry)/det;
+  }
+  return [x, y];
+}
+// Un pezzo disegnato sulla foto (vista di fronte): tubolare metallico, cavo sottile o piastra.
+function drawPartPhoto(ctx, g, part, col){
+  if (part.kind === 'cable'){
+    const A = g.S(part.a[0], part.a[1]), B = g.S(part.b[0], part.b[1]);
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1.3, g.pxPerCm*part.t*.9); ctx.strokeStyle = 'rgba(225,229,235,.95)';
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.restore(); return;
+  }
+  const poly = segPoly(part.a, part.b, part.t);
+  if (part.kind === 'plate'){
+    const ang = Math.abs(Math.atan2(part.b[1] - part.a[1], part.b[0] - part.a[0])) % Math.PI, flat = ang < .45 || ang > Math.PI - .45;
+    if (flat && Math.min(part.a[1], part.b[1]) > g.c.h) groundShadow(ctx, g, Math.min(part.a[0], part.b[0]) - 10, Math.max(part.a[0], part.b[0]) + 10, Math.max(part.a[1], part.b[1]) + part.t/2);
+    else { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = Math.max(3, g.pxPerCm*2.5); ctx.shadowOffsetY = g.pxPerCm; polyCm(ctx, g, poly); ctx.fillStyle = shade(col, -.2); ctx.fill(); ctx.restore(); }
+  }
+  const m1 = g.S((poly[0][0] + poly[1][0])/2, (poly[0][1] + poly[1][1])/2), m2 = g.S((poly[3][0] + poly[2][0])/2, (poly[3][1] + poly[2][1])/2);
+  const gr = ctx.createLinearGradient(m1[0], m1[1], m2[0], m2[1]);
+  if (part.kind === 'plate'){ gr.addColorStop(0, shade(col, .3)); gr.addColorStop(.4, col); gr.addColorStop(1, shade(col, -.55)); }
+  else { gr.addColorStop(0, shade(col, -.45)); gr.addColorStop(.28, shade(col, .28)); gr.addColorStop(.55, col); gr.addColorStop(1, shade(col, -.55)); }
+  polyCm(ctx, g, poly); ctx.fillStyle = gr; ctx.fill();
+}
+
+/* ---------- Vista da dietro / scheda di installazione ---------- */
+// Tutti i pezzi della struttura in cm, compresi quelli nascosti dietro lo schermo (binari, traversi, attacchi).
+function structureModel(p){
+  const site = p.site || {}, st = structOf(site) || 'none', c = panelCm(p), w = c.w, h = c.h, f = FRAME_CM[st] || 2;
+  const def = STRUCT_DEFAULTS[st] || {}, G = h + f + (site.ground != null ? site.ground : (def.ground || 80)), T = -f - (site.top != null ? site.top : (def.top || 70));
+  const col = (STRUCT_COLORS.find(k => k.id === site.color) || STRUCT_COLORS[0]).hex;
+  const M = { st, w, h, f, col, frameCol: (st === 'none' || st === 'hang') ? '#121214' : col, parts: [], ground: null, wall: null, ceiling: null, lower: null, notes: [] };
+  const P = (kind, a, b, t, name) => M.parts.push({ kind, a, b, t, name });
+  if (st === 'none'){
+    [h*.25, h*.75].forEach(y => P('tube', [w*.06, y], [w*.94, y], 4, 'Binario a parete'));
+    M.notes.push('Fissato a parete con due binari dietro lo schermo.');
+  } else if (st === 'totem' || st === 'totemPanel'){
+    const lw = clamp(w*.08, 4, 8), inset = Math.max(lw, w*.1), xl = inset + lw/2, xr = w - inset - lw/2;
+    P('tube', [xl, h*.06], [xl, G - 5], lw, 'Gamba'); P('tube', [xr, h*.06], [xr, G - 5], lw, 'Gamba');
+    P('tube', [xl, h*.3], [xr, h*.3], 3, 'Traverso'); P('tube', [xl, h*.75], [xr, h*.75], 3, 'Traverso');
+    P('plate', [-14, G - 2.5], [w + 14, G - 2.5], 5, 'Base');
+    M.ground = G;
+    if (st === 'totemPanel') M.lower = plateBox({ c, f, G }, site);
+    M.notes.push('Le gambe salgono dietro lo schermo e lo reggono con due traversi.');
+  } else if (st === 'flag'){
+    const r = site.side !== 'left', arm = site.arm != null ? site.arm : FLAG_ARM, X = r ? w + f + arm : -f - arm, t = clamp(h*.05, 3, 5);
+    const ys = h >= 40 ? [h*.2, h*.8] : [h*.5];
+    ys.forEach(y => P('tube', [r ? w*.12 : w*.88, y], [X, y], t, 'Staffa'));
+    if (ys.length > 1) [w*.3, w*.8].forEach(x => P('tube', [x, h*.12], [x, h*.88], 3, 'Montante'));
+    P('plate', [X + (r ? 1.25 : -1.25), ys[0] - 8], [X + (r ? 1.25 : -1.25), ys[ys.length - 1] + 8], 2.5, 'Piastra a muro');
+    M.wall = { x: X, side: r ? 'right' : 'left' };
+    M.notes.push('Le staffe attraversano il retro dello schermo e si avvitano alla piastra sul muro.');
+  } else if (st === 'hang'){
+    [Math.min(8, w*.12), w - Math.min(8, w*.12)].forEach(x => P('cable', [x, -f], [x, T], .6, 'Cavo d\'acciaio'));
+    M.ceiling = T;
+    M.notes.push('Sospeso con due cavi d\'acciaio agganciati al soffitto.');
+  } else if (st === 'custom'){
+    (site.bars || []).forEach(b => P(b.kind, b.a.slice(), b.b.slice(), b.t, kindOf(b.kind).name));
+    M.notes.push('Struttura disegnata su misura per questa installazione.');
+  }
+  return M;
+}
+// Distinta dei pezzi: stesso tipo e stessa lunghezza (arrotondata) vanno insieme.
+function partsList(M){
+  const map = new Map();
+  M.parts.forEach(pt => { const L = Math.round(segLen(pt)), k = pt.name + '|' + (pt.kind === 'plate' ? L + '×' + num(Math.round(pt.t*10)/10) : L); const x = map.get(k) || { name: pt.name, kind: pt.kind, len: L, t: pt.t, n: 0 }; x.n++; map.set(k, x); });
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name) || b.len - a.len);
+}
+const partLine = x => x.n + ' × ' + x.name + ' ' + x.len + ' cm' + (x.kind === 'tube' ? ' (Ø ' + num(Math.round(x.t*10)/10) + ' cm)' : x.kind === 'plate' ? ' × ' + num(Math.round(x.t*10)/10) + ' cm' : '');
+// Disegno ortogonale (senza prospettiva) della struttura, di fronte o da dietro, con le misure principali.
+function drawSheet(ctx, W, H, p, M, back, opts){
+  opts = opts || {};
+  const w = M.w, h = M.h, f = M.f, mx = x => back ? w - x : x;
+  // ingombro totale
+  let x0 = -f, x1 = w + f, y0 = -f, y1 = h + f;
+  const grow = (x, y) => { x = mx(x); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
+  M.parts.forEach(pt => { segPoly(pt.a, pt.b, pt.t).forEach(q => grow(q[0], q[1])); });
+  if (M.ground != null) y1 = Math.max(y1, M.ground + 8);
+  if (M.ceiling != null) y0 = Math.min(y0, M.ceiling - 8);
+  if (M.wall){ const wx = mx(M.wall.x); x0 = Math.min(x0, wx - 12); x1 = Math.max(x1, wx + 12); }
+  const padL = W*.1, padR = W*.1, padT = (opts.top || 0) + H*.09, padB = (opts.bottom || 0) + H*.1;
+  const k = Math.min((W - padL - padR)/(x1 - x0 || 1), (H - padT - padB)/(y1 - y0 || 1));
+  const ox = padL + ((W - padL - padR) - (x1 - x0)*k)/2 - x0*k, oy = padT + ((H - padT - padB) - (y1 - y0)*k)/2 - y0*k;
+  const X = x => ox + mx(x)*k, Y = y => oy + y*k, U = Math.max(1, W/900);
+  // foglio a quadretti (10 cm)
+  ctx.fillStyle = '#F4F4F1'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(0,0,0,.05)'; ctx.lineWidth = 1;
+  const step = 10*k; if (step > 4){ for (let gx = ox % step; gx < W; gx += step){ ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); } for (let gy = oy % step; gy < H; gy += step){ ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); } }
+  const hatch = (ax, ay, bx, by, nx, ny) => { ctx.save(); ctx.strokeStyle = '#8A8A86'; ctx.lineWidth = 2*U; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.lineWidth = 1*U; const L = Math.hypot(bx - ax, by - ay), n = Math.floor(L/(10*U)); for (let i = 0; i <= n; i++){ const t = i/n || 0, px = ax + (bx - ax)*t, py = ay + (by - ay)*t; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + nx*8*U + (ny ? -6*U : 0), py + ny*8*U + (nx ? 6*U : 0)); ctx.stroke(); } ctx.restore(); };
+  if (M.ground != null) hatch(0, Y(M.ground), W, Y(M.ground), 0, 1);
+  if (M.ceiling != null) hatch(0, Y(M.ceiling), W, Y(M.ceiling), 0, -1);
+  if (M.wall){ const wx = X(M.wall.x), out = (mx(M.wall.x) > mx(w/2)) ? 1 : -1; hatch(wx + out*2*U, 0, wx + out*2*U, H, out, 0); }
+  const rect = (a, b, c2, d) => { ctx.beginPath(); ctx.rect(Math.min(X(a), X(c2)), Y(b), Math.abs(X(c2) - X(a)), Y(d) - Y(b)); };
+  const drawPart = pt => {
+    if (pt.kind === 'cable'){ ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#7C828A'; ctx.lineWidth = Math.max(1.5*U, pt.t*k); ctx.beginPath(); ctx.moveTo(X(pt.a[0]), Y(pt.a[1])); ctx.lineTo(X(pt.b[0]), Y(pt.b[1])); ctx.stroke(); ctx.restore(); return; }
+    const poly = segPoly(pt.a, pt.b, pt.t).map(q => [X(q[0]), Y(q[1])]);
+    const m1 = [(poly[0][0] + poly[1][0])/2, (poly[0][1] + poly[1][1])/2], m2 = [(poly[3][0] + poly[2][0])/2, (poly[3][1] + poly[2][1])/2];
+    const gr = ctx.createLinearGradient(m1[0], m1[1], m2[0], m2[1]), col = M.col;
+    gr.addColorStop(0, shade(col, pt.kind === 'plate' ? .25 : -.35)); gr.addColorStop(.35, shade(col, .2)); gr.addColorStop(.6, col); gr.addColorStop(1, shade(col, -.5));
+    ctx.beginPath(); poly.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.fillStyle = gr; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.stroke();
+  };
+  const lowerPanel = () => {
+    const b = M.lower; if (!b) return;
+    rect(b.x0, b.y0, b.x1, b.y1); ctx.fillStyle = back ? '#5A5E65' : plateColorOf(p, p.site, M.col); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.5*U; ctx.stroke();
+    if (!back){
+      const src = plateLogoSrc(p, p.site), img = src && imgReady.get(src);
+      if (img && img.naturalWidth){ const s = p.site, kk = clamp((s.plateLogoSize != null ? s.plateLogoSize : 70)/100, .2, 1), m = Math.min(b.pw, b.ph)*.07, bw = (b.pw - 2*m)*kk, bh = (b.ph - 2*m)*kk, r = img.naturalWidth/img.naturalHeight; let lw = bw, lh = bw/r; if (lh > bh){ lh = bh; lw = bh*r; } const cy = b.y0 + b.ph*(s.plateLogoY != null ? s.plateLogoY : .5), ly = clamp(cy - lh/2, b.y0 + m, b.y1 - m - lh); ctx.drawImage(img, Math.min(X(w/2 - lw/2), X(w/2 + lw/2)), Y(ly), lw*k, lh*k); }
+    }
+  };
+  const panelFront = () => {
+    rect(-f, -f, w + f, h + f); ctx.fillStyle = M.frameCol; ctx.fill();
+    rect(0, 0, w, h); const gr = ctx.createLinearGradient(X(0), Y(0), X(w), Y(h)); gr.addColorStop(0, '#16171A'); gr.addColorStop(1, '#050506'); ctx.fillStyle = gr; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '600 ' + Math.max(11*U, Math.min(18*U, w*k*.06)) + 'px -apple-system,Segoe UI,Roboto,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Schermo LED', X(w/2), Y(h/2));
+  };
+  const panelBack = () => {
+    rect(-f, -f, w + f, h + f); ctx.fillStyle = '#3B3E44'; ctx.fill();
+    rect(0, 0, w, h); const gr = ctx.createLinearGradient(X(0), Y(0), X(0), Y(h)); gr.addColorStop(0, '#5B5F66'); gr.addColorStop(1, '#43464C'); ctx.fillStyle = gr; ctx.fill();
+    // moduli (cabinet) da circa 50 cm, con i bulloni agli angoli
+    const nx = Math.max(1, Math.round(w/50)), ny = Math.max(1, Math.round(h/50));
+    ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1.5*U;
+    for (let i = 1; i < nx; i++){ ctx.beginPath(); ctx.moveTo(X(w*i/nx), Y(0)); ctx.lineTo(X(w*i/nx), Y(h)); ctx.stroke(); }
+    for (let j = 1; j < ny; j++){ ctx.beginPath(); ctx.moveTo(X(0), Y(h*j/ny)); ctx.lineTo(X(w), Y(h*j/ny)); ctx.stroke(); }
+    ctx.fillStyle = '#9DA2A9';
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) [[.12, .12], [.88, .12], [.12, .88], [.88, .88]].forEach(q => { ctx.beginPath(); ctx.arc(X(w*(i + q[0])/nx), Y(h*(j + q[1])/ny), Math.max(1.5*U, k*.8), 0, Math.PI*2); ctx.fill(); });
+    // centralina e alimentazione
+    const bw = Math.min(24, w*.32), bh = Math.min(14, h*.2), bx = w/2 - bw/2, by = h*.42 - bh/2;
+    rect(bx, by, bx + bw, by + bh); ctx.fillStyle = '#1C1D20'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1*U; ctx.stroke();
+    const fs = Math.max(9*U, Math.min(14*U, bw*k*.13)); ctx.font = '600 ' + fs + 'px -apple-system,Segoe UI,Roboto,sans-serif'; ctx.fillStyle = '#E8E8E4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (bw*k > 60*U) ctx.fillText('Centralina', X(w/2), Y(by + bh/2));
+    // cavo di alimentazione: verso terra, verso il muro o verso il soffitto
+    let end;
+    if (M.ground != null) end = [w*.5, M.ground];
+    else if (M.wall) end = [M.wall.x, h*.5];
+    else if (M.ceiling != null) end = [w*.5, M.ceiling];
+    else end = [w*.5, h + f + Math.max(25, h*.3)];
+    const sx = w/2, sy = M.ceiling != null ? by : by + bh;
+    ctx.save(); ctx.strokeStyle = '#D9822B'; ctx.lineWidth = Math.max(2*U, k*1.2); ctx.lineJoin = 'round'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(X(sx), Y(sy));
+    if (M.wall) { ctx.lineTo(X(sx), Y(end[1])); ctx.lineTo(X(end[0]), Y(end[1])); } else ctx.lineTo(X(end[0]), Y(end[1]));
+    ctx.stroke(); ctx.restore();
+    return { cable: M.wall ? [(sx + end[0])/2, end[1]] : [sx, (sy + end[1])/2] };
+  };
+  // ordine: davanti la struttura sta dietro lo schermo; da dietro è il contrario
+  let cableAt = null;
+  if (back){ lowerPanel(); cableAt = panelBack().cable; M.parts.forEach(drawPart);
+    // punti di fissaggio dove la struttura tocca il retro dello schermo
+    ctx.fillStyle = '#E8E8E4'; ctx.strokeStyle = '#222'; ctx.lineWidth = 1*U;
+    M.parts.forEach(pt => [pt.a, pt.b].forEach(q => { if (q[0] >= -f && q[0] <= w + f && q[1] >= -f && q[1] <= h + f){ ctx.beginPath(); ctx.arc(X(q[0]), Y(q[1]), Math.max(3*U, pt.t*k*.45), 0, Math.PI*2); ctx.fill(); ctx.stroke(); } }));
+  } else { M.parts.forEach(drawPart); lowerPanel(); panelFront(); }
+  // misure
+  const font = s => '600 ' + s + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+  const dim = (ax, ay, bx, by, label, off) => {
+    ctx.save(); ctx.strokeStyle = '#1D1D1F'; ctx.fillStyle = '#1D1D1F'; ctx.lineWidth = 1.2*U;
+    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, nx = -dy/L*off, ny = dx/L*off;
+    const a = [ax + nx, ay + ny], b = [bx + nx, by + ny];
+    ctx.setLineDash([3*U, 3*U]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(a[0], a[1]); ctx.moveTo(bx, by); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    const ah = 6*U, ang = Math.atan2(dy, dx); [[a, ang], [b, ang + Math.PI]].forEach(q => { ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); ctx.lineTo(q[0][0] + Math.cos(q[1] - .4)*ah, q[0][1] + Math.sin(q[1] - .4)*ah); ctx.lineTo(q[0][0] + Math.cos(q[1] + .4)*ah, q[0][1] + Math.sin(q[1] + .4)*ah); ctx.closePath(); ctx.fill(); });
+    ctx.font = font(13*U); const tw = ctx.measureText(label).width + 12*U, cx = (a[0] + b[0])/2, cy = (a[1] + b[1])/2;
+    ctx.fillStyle = '#F4F4F1'; ctx.fillRect(cx - tw/2, cy - 10*U, tw, 20*U); ctx.fillStyle = '#1D1D1F'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, cx, cy);
+    ctx.restore();
+  };
+  const cm = v => Math.round(v) + ' cm';
+  dim(X(0), Y(-f), X(w), Y(-f), cm(w), -22*U);
+  // misure verticali sempre fuori dallo schermo: altezza a destra, da terra a sinistra, totale più a destra
+  const Lx = Math.min(X(-f), X(w + f)), Rx = Math.max(X(-f), X(w + f));
+  dim(Rx, Y(0), Rx, Y(h), cm(h), -18*U);
+  if (M.ground != null){
+    dim(Lx, Y(h + f), Lx, Y(M.ground), 'Da terra ' + cm(M.ground - h - f), 20*U);
+    dim(Rx, Y(-f), Rx, Y(M.ground), 'Totale ' + cm(M.ground + f), -70*U);
+  }
+  if (M.wall){ const r = M.wall.side === 'right', ex = r ? w + f : -f; dim(X(ex), Y(h + f), X(M.wall.x), Y(h + f), 'Dal muro ' + cm(Math.abs(M.wall.x - ex)), -24*U); }
+  if (M.ceiling != null) dim(X(w*.5), Y(M.ceiling), X(w*.5), Y(-f), 'Cavi ' + cm(-f - M.ceiling), 0);
+  if (M.st === 'custom'){
+    M.parts.forEach(pt => { const L = segLen(pt); if (L < 8) return; const cx = X((pt.a[0] + pt.b[0])/2), cy = Y((pt.a[1] + pt.b[1])/2), lb = Math.round(L) + ' cm';
+      ctx.font = font(12*U); const tw = ctx.measureText(lb).width + 10*U; ctx.fillStyle = 'rgba(29,29,31,.85)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx - tw/2, cy - 9*U, tw, 18*U, 9*U) : ctx.rect(cx - tw/2, cy - 9*U, tw, 18*U); ctx.fill(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lb, cx, cy); });
+  }
+  if (back && cableAt){ ctx.font = font(12*U); ctx.fillStyle = '#A85A12'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('Alimentazione 230 V', X(cableAt[0]) + (back ? -1 : 1)*0 + 8*U, Y(cableAt[1])); }
+  return { k, X, Y };
 }
 function applyAtmosphere(x, W, H, mode){
   if (mode === 'dim'){ x.fillStyle = 'rgba(0,0,0,.32)'; x.fillRect(0, 0, W, H); }
@@ -3346,8 +3569,10 @@ const STRUCT_SVG = {
   totem: '<rect x="16" y="6" width="32" height="24" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M23 31v23M41 31v23" stroke="currentColor" stroke-width="3"/><path d="M12 56h40" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
   totemPanel: '<rect x="16" y="4" width="32" height="22" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><rect x="17" y="28.5" width="30" height="21" rx="1.5" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="39" r="5" stroke="currentColor" stroke-width="2"/><path d="M23 50v4M41 50v4" stroke="currentColor" stroke-width="3"/><path d="M12 56h40" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
   flag:  '<path d="M59 5v54" stroke="currentColor" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 4"/><rect x="5" y="16" width="36" height="30" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M41 22h14M41 40h14" stroke="currentColor" stroke-width="3"/><path d="M56 15v32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
+  custom: '<rect x="14" y="14" width="34" height="26" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/><path d="M40 36l16 18M24 40l-10 16M48 20h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M50 56h10M8 58h12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><circle cx="56" cy="54" r="2.5" fill="currentColor"/><circle cx="14" cy="56" r="2.5" fill="currentColor"/><circle cx="58" cy="20" r="2.5" fill="currentColor"/>',
   hang:  '<path d="M4 6h56" stroke="currentColor" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/><path d="M19 7v15M45 7v15" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="22" width="40" height="27" rx="2" fill="#000" stroke="currentColor" stroke-width="2"/>'
 };
+const BACK_SVG = '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="10" y="10" width="44" height="32" rx="2" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2"/><path d="M32 10v32M10 26h44" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="26" y="22" width="12" height="8" rx="1" fill="currentColor"/><path d="M20 42v14M44 42v14M12 56h40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 const structIcon = (id, flip) => '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true">' + (flip ? '<g transform="translate(64 0) scale(-1 1)">' : '') + (STRUCT_SVG[id] || STRUCT_SVG.none) + (flip ? '</g>' : '') + '</svg>';
 function openStructureSheet(onDone){
   const site = project.site, cur = structOf(site) || 'none';
@@ -3356,7 +3581,12 @@ function openStructureSheet(onDone){
     STRUCTURES.map(s => '<button type="button" class="struct-card' + (s.id === cur && site.structure ? ' selected' : '') + '" data-v="' + s.id + '">' + structIcon(s.id) + '<strong>' + s.label + '</strong><span>' + s.hint + '</span></button>').join('') + '</div></div></div>';
   const finish = () => { closeModal(); if (onDone) onDone(); };
   $('#sheet-x').onclick = () => { if (!site.structure){ site.structure = 'none'; touch(); } finish(); };
-  $$('.struct-card', modalRoot).forEach(b => b.onclick = () => { site.structure = b.dataset.v; site.ground = null; site.top = null; if (b.dataset.v === 'flag'){ if (!site.side) site.side = 'right'; site.arm = null; } touch(); finish(); });
+  $$('.struct-card', modalRoot).forEach(b => b.onclick = () => {
+    site.structure = b.dataset.v; site.ground = null; site.top = null;
+    if (b.dataset.v === 'flag'){ if (!site.side) site.side = 'right'; site.arm = null; }
+    if (b.dataset.v === 'custom'){ if (!site.bars) site.bars = []; customUI.sel = -1; customUI.undo = []; customUI.drawing = !site.bars.length; }
+    touch(); finish();
+  });
 }
 /* ---------- Foto dell'attività: taglia e sistema (ritaglio libero, rotazione, raddrizza) ---------- */
 // Disegna la foto originale ruotata (a scatti di 90° + angolo fine) e ingrandita quanto basta per non lasciare angoli vuoti.
@@ -3535,6 +3765,23 @@ VIEWS.place = async function(){
       (plLogo ? '<div class="field"><label class="lbl" for="pl-size">Grandezza del logo</label><div class="range-row"><input type="range" id="pl-size" min="25" max="100" step="1" value="' + (site.plateLogoSize != null ? site.plateLogoSize : 70) + '"><output id="pl-size-o">' + (site.plateLogoSize != null ? site.plateLogoSize : 70) + '%</output></div></div>' +
         '<div class="field"><label class="lbl" for="pl-y">Posizione del logo</label><div class="range-row"><span class="small muted">Su</span><input type="range" id="pl-y" min="0" max="100" step="1" value="' + Math.round((site.plateLogoY != null ? site.plateLogoY : .5)*100) + '"><span class="small muted">Giù</span></div></div>' : '') +
     '</div>';
+  const isCustom = stId === 'custom'; if (isCustom && !site.bars) site.bars = [];
+  const bars = site.bars || [], selBar = isCustom && customUI.sel >= 0 ? bars[customUI.sel] : null; if (isCustom && !selBar) customUI.sel = -1;
+  const customGroup = !isCustom ? '' :
+    '<div class="group"><div class="group-title">Struttura personalizzata</div>' +
+      '<p class="help" style="margin:0">' + (bars.length ? 'Tocca un pezzo sulla foto per sceglierlo, trascina i quadratini per spostarne le estremità.' : 'Scegli il pezzo, attiva "Disegna" e trascina il dito sulla foto da un punto all\'altro. Le estremità si agganciano alla cornice e agli altri pezzi.') + '</p>' +
+      '<div class="seg" id="cu-tool">' + CUSTOM_KINDS.map(k => '<button type="button" class="seg-btn' + (customUI.tool === k.id ? ' selected' : '') + '" data-v="' + k.id + '">' + k.label + '</button>').join('') + '</div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-sm ' + (customUI.drawing ? 'btn-primary' : 'btn-secondary') + '" id="cu-draw">' + (customUI.drawing ? 'Disegno attivo: tocca per smettere' : 'Disegna') + '</button>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="cu-undo"' + (customUI.undo.length ? '' : ' disabled') + '>Annulla</button>' +
+        (bars.length ? '<button type="button" class="btn btn-ghost btn-sm" id="cu-clear">Cancella tutto</button>' : '') + '</div>' +
+      '<div class="switch-row"><label for="cu-straight">Linee dritte (0°, 45°, 90°)</label><input type="checkbox" class="switch" id="cu-straight"' + (customUI.straight ? ' checked' : '') + '></div>' +
+      (selBar ? '<div class="cu-sel"><div class="cu-sel-head"><strong>Pezzo ' + (customUI.sel + 1) + ' di ' + bars.length + '</strong><span>' + Math.round(segLen(selBar)) + ' cm</span></div>' +
+        '<div class="pills" id="cu-kind">' + CUSTOM_KINDS.map(k => '<button type="button" class="pill' + (selBar.kind === k.id ? ' selected' : '') + '" data-v="' + k.id + '">' + k.label + '</button>').join('') + '</div>' +
+        '<div class="field"><label class="lbl" for="cu-t">' + (selBar.kind === 'plate' ? 'Larghezza' : 'Spessore') + '</label><div class="range-row"><input type="range" id="cu-t" min="' + kindOf(selBar.kind).min + '" max="' + kindOf(selBar.kind).max + '" step="' + kindOf(selBar.kind).step + '" value="' + selBar.t + '"><output id="cu-t-o">' + num(selBar.t) + ' cm</output></div></div>' +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary btn-sm" id="cu-mirror">Copia a specchio</button><button type="button" class="btn btn-secondary btn-sm" id="cu-desel">Fatto</button><button type="button" class="btn btn-ghost btn-sm cu-del" id="cu-del">Elimina</button></div></div>' : '') +
+      '<details class="more"' + (bars.length ? '' : ' open') + '><summary>Parti da un modello</summary><div class="btn-row" style="margin-top:8px">' +
+        [['totem', 'Totem'], ['flagR', 'Bandiera a destra'], ['flagL', 'Bandiera a sinistra'], ['diag', 'Braccio con saetta obliqua'], ['cables', 'Cavi dal soffitto']].map(t => '<button type="button" class="btn btn-secondary btn-sm" data-tpl="' + t[0] + '">' + t[1] + '</button>').join('') + '</div></details>' +
+    '</div>';
   const flagGroup = !needArm ? '' :
     '<div class="group"><div class="group-title">Bandiera</div><div class="field"><span class="lbl">Dove si attacca al muro</span><div class="seg" id="fside"><button type="button" class="seg-btn' + (site.side === 'left' ? ' selected' : '') + '" data-v="left">Muro a sinistra</button><button type="button" class="seg-btn' + (site.side !== 'left' ? ' selected' : '') + '" data-v="right">Muro a destra</button></div></div>' +
       '<div class="cm-row">' + numField('fl-arm', 'Lunghezza delle staffe', Math.round(site.arm != null ? site.arm : FLAG_ARM)) + '</div>' +
@@ -3549,7 +3796,8 @@ VIEWS.place = async function(){
     '<div class="group"><div class="group-title">Struttura</div><div class="choice-row"><span class="choice-ico">' + structIcon(stId, isFlip) + '</span><div class="choice-val"><strong>' + stDef.label + '</strong><small>' + stDef.hint + '</small></div><button type="button" class="btn btn-secondary btn-sm" id="st-pick">Cambia</button></div>' +
       (hasColor(stId) ? '<div class="field"><span class="lbl">Colore della struttura</span><div class="pills" id="scol">' + STRUCT_COLORS.map(k => '<button type="button" class="pill pill-dot' + ((site.color || 'black') === k.id ? ' selected' : '') + '" data-v="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.label + '</button>').join('') + '</div></div>' : '') +
       (needGround ? '<p class="help" style="margin:0">Trascina il rombo bianco fino al punto in cui la struttura tocca terra.</p>' : needTop ? '<p class="help" style="margin:0">Trascina il rombo bianco fino al soffitto o al punto in cui si agganciano i cavi.</p>' : '') + '</div>' +
-    panelGroup + flagGroup +
+    panelGroup + flagGroup + customGroup +
+    '<button type="button" class="choice-row prof-card" id="to-back"><span class="choice-ico">' + BACK_SVG + '</span><span class="choice-val"><strong>Vista da dietro e scheda di installazione</strong><small>Come si monta: retro dello schermo, struttura, misure e pezzi da preparare</small></span>' + IC.chev + '</button>' +
     '<div class="group"><div class="group-title">Foto dell\'attività</div><p class="help" style="margin:0">Se la tagli, la ruoti o la cambi dovrai riposizionare l\'insegna.</p><div class="btn-row"><button class="btn btn-secondary btn-sm" id="se-open">' + CROP_SVG + 'Taglia e sistema</button></div>' + siteUploadHTML('re', true) + '</div>' +
     '<div class="actionbar"><button class="btn btn-primary" id="next"' + (site.q ? '' : ' disabled') + '>Avanti: guarda il render</button></div>';
   bindTopbar(async () => { await saveNow(); go(spotView()); });
@@ -3584,10 +3832,11 @@ VIEWS.place = async function(){
     let t;
     if (measuring) t = 'Traccia una linea su qualcosa di cui conosci la misura, alla stessa distanza dell\'insegna.';
     else if (redrawing || !site.q) t = 'Trascina il dito sulla foto dove va l\'insegna, da un angolo a quello opposto.';
+    else if (stId === 'custom' && customUI.drawing) t = 'Disegna: trascina il dito da un punto all\'altro per aggiungere ' + (customUI.tool === 'cable' ? 'un cavo' : customUI.tool === 'plate' ? 'una piastra' : 'un tubolare') + '.';
     else if (site.persp) t = 'Porta ogni angolo sul punto giusto della foto per seguire la prospettiva.';
     else t = 'Trascina l\'insegna per spostarla, un angolo per ingrandirla o rimpicciolirla.';
     $('#phint').textContent = pcw(t);
-    cv.classList.toggle('drawing', measuring || redrawing || !site.q);
+    cv.classList.toggle('drawing', measuring || redrawing || !site.q || (stId === 'custom' && customUI.drawing));
   };
   const handles = () => {
     const out = []; if (!site.q || !R.geo) return out;
@@ -3596,6 +3845,7 @@ VIEWS.place = async function(){
     if (needGround) out.push({ kind:'ground', pt: g.S(g.c.w/2, g.G) });
     if (needTop) out.push({ kind:'top', pt: g.S(g.c.w/2, g.T) });
     if (needArm) out.push({ kind:'arm', pt: g.S(g.wallX, g.c.h/2) });
+    if (stId === 'custom' && customUI.sel >= 0 && site.bars[customUI.sel]){ const b = site.bars[customUI.sel]; out.unshift({ kind:'bend', e:0, pt: g.S(b.a[0], b.a[1]) }, { kind:'bend', e:1, pt: g.S(b.b[0], b.b[1]) }); }
     return out;
   };
   const diamond = (pt, r) => { ctx.beginPath(); ctx.moveTo(pt[0], pt[1] - r); ctx.lineTo(pt[0] + r, pt[1]); ctx.lineTo(pt[0], pt[1] + r); ctx.lineTo(pt[0] - r, pt[1]); ctx.closePath(); };
@@ -3612,6 +3862,7 @@ VIEWS.place = async function(){
       if (!redrawing && !measuring){
         handles().forEach(h => {
           if (h.kind === 'corner'){ ctx.beginPath(); ctx.arc(h.pt[0], h.pt[1], 8*S, 0, Math.PI*2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 3*S; ctx.strokeStyle = '#000'; ctx.stroke(); }
+          else if (h.kind === 'bend'){ ctx.beginPath(); ctx.rect(h.pt[0] - 7*S, h.pt[1] - 7*S, 14*S, 14*S); ctx.fillStyle = '#FFD60A'; ctx.fill(); ctx.lineWidth = 2.5*S; ctx.strokeStyle = '#000'; ctx.stroke(); }
           else if (h.kind === 'arm'){
             const g = R.geo, a = g.S(g.wallX, -25), b = g.S(g.wallX, g.c.h + 25);
             ctx.setLineDash([4*S, 4*S]); ctx.lineWidth = 1.5*S; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
@@ -3623,6 +3874,20 @@ VIEWS.place = async function(){
           }
         });
       }
+    }
+    if (stId === 'custom' && R.geo && !redrawing && !measuring){
+      const g = R.geo;
+      // il pezzo scelto: contorno giallo; quello che si sta disegnando: linea gialla con la misura
+      const sb = customUI.sel >= 0 && site.bars[customUI.sel];
+      if (sb){ const pts = segPoly(sb.a, sb.b, Math.max(sb.t, 1.5)).map(q => g.S(q[0], q[1])); ctx.setLineDash([5*S, 4*S]); ctx.lineWidth = 2*S; ctx.strokeStyle = '#FFD60A'; ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+      if (drag && drag.kind === 'newbar' && drag.b){
+        const A = g.S(drag.a[0], drag.a[1]), B = g.S(drag.b[0], drag.b[1]);
+        ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3*S, g.pxPerCm*kindOf(customUI.tool).t); ctx.strokeStyle = 'rgba(255,214,10,.85)'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+        const lb = Math.round(Math.hypot(drag.b[0] - drag.a[0], drag.b[1] - drag.a[1])) + ' cm';
+        ctx.font = '600 ' + (13*S) + 'px -apple-system,Segoe UI,Roboto,sans-serif'; const tw = ctx.measureText(lb).width + 12*S;
+        ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(B[0] + 10*S, B[1] - 26*S, tw, 20*S); ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(lb, B[0] + 16*S, B[1] - 16*S);
+      }
+      if (drag && (drag.kind === 'newbar' || drag.kind === 'bend') && drag.snapped){ ctx.beginPath(); ctx.arc(drag.snapped[0], drag.snapped[1], 10*S, 0, Math.PI*2); ctx.lineWidth = 2*S; ctx.strokeStyle = '#FFD60A'; ctx.stroke(); }
     }
     if (drag && drag.kind === 'measure'){
       ctx.lineWidth = 3*S; ctx.strokeStyle = '#FFE2B3'; ctx.lineCap = 'round';
@@ -3646,17 +3911,45 @@ VIEWS.place = async function(){
   const widthOf = q => (dist(q[0], q[1]) + dist(q[3], q[2]))/2;
   const scaleAbout = (q, o, k) => q.map(pt => [o[0] + (pt[0] - o[0])*k, o[1] + (pt[1] - o[1])*k]);
   const placed = () => { redrawing = false; hint(); $('#next').disabled = false; touch(); if (!site.structure) openStructureSheet(() => go('place')); };
+  // struttura personalizzata: aggancio alle estremità degli altri pezzi e alla cornice, linee dritte a scatti di 45°
+  const snapCm = (cmPt, skip, from) => {
+    const g = R.geo, w = g.c.w, h = g.c.h, f = g.f, px = g.S(cmPt[0], cmPt[1]);
+    const cands = [[-f, -f], [w/2, -f], [w + f, -f], [w + f, h/2], [w + f, h + f], [w/2, h + f], [-f, h + f], [-f, h/2]];
+    (site.bars || []).forEach((b, i) => { if (i !== skip){ cands.push(b.a, b.b); } });
+    let best = null, bd = 16*S;
+    cands.forEach(cn => { const q = g.S(cn[0], cn[1]), d = dist(q, px); if (d < bd){ bd = d; best = cn; } });
+    if (best) return { pt: best.slice(), px: g.S(best[0], best[1]) };
+    if (from && customUI.straight){
+      const dx = cmPt[0] - from[0], dy = cmPt[1] - from[1], L = Math.hypot(dx, dy), a = Math.round(Math.atan2(dy, dx)/(Math.PI/4))*(Math.PI/4);
+      return { pt: [from[0] + Math.cos(a)*L, from[1] + Math.sin(a)*L], px: null };
+    }
+    return { pt: cmPt, px: null };
+  };
+  const hitBar = pt => {
+    const g = R.geo; let best = -1, bd = 14*S;
+    (site.bars || []).forEach((b, i) => {
+      const A = g.S(b.a[0], b.a[1]), B = g.S(b.b[0], b.b[1]), vx = B[0] - A[0], vy = B[1] - A[1], L2 = vx*vx + vy*vy || 1;
+      const t = clamp(((pt[0] - A[0])*vx + (pt[1] - A[1])*vy)/L2, 0, 1), d = dist(pt, [A[0] + vx*t, A[1] + vy*t]) - b.t*g.pxPerCm/2;
+      if (d < bd){ bd = d; best = i; }
+    });
+    return best;
+  };
+  const customRefresh = () => go('place', { keepScroll:true });
 
   cv.addEventListener('pointerdown', e => {
     const pt = toPx(e); try { cv.setPointerCapture(e.pointerId); } catch (_){}
     if (measuring){ drag = { kind:'measure', a:pt, b:pt }; return; }
     if (redrawing || !site.q){ drag = { kind:'draw', a:pt }; return; }
+    if (stId === 'custom' && R.geo && customUI.drawing){ const s0 = snapCm(sInv(R.geo, pt), -1); drag = { kind:'newbar', a: s0.pt, b: null, snapped: s0.px }; return; }
     const hs = handles(); let best = null, bd = 26*S;
     hs.forEach(h => { const d = dist(h.pt, pt); if (d < bd){ bd = d; best = h; } });
     const q = quadPx(site.q, W, H);
+    if (best && best.kind === 'bend'){ customPush(site); drag = Object.assign({ moved:false }, best); return; }
+    const hb = stId === 'custom' && R.geo && !best ? hitBar(pt) : -1;
+    if (hb > -1){ const b = site.bars[hb]; customPush(site); drag = { kind:'barmove', i: hb, start: sInv(R.geo, pt), a0: b.a.slice(), b0: b.b.slice(), moved:false, selChange: customUI.sel !== hb }; customUI.sel = hb; schedule(); return; }
     if (best) drag = Object.assign({ q0: q }, best);
     else if (pointInPoly(pt, q)) drag = { kind:'move', a:pt, q0:q };
-    else drag = null;
+    else { drag = null; if (stId === 'custom' && customUI.sel > -1){ customUI.sel = -1; customRefresh(); } }
   });
   cv.addEventListener('pointermove', e => {
     if (!drag) return; const pt = toPx(e);
@@ -3681,6 +3974,16 @@ VIEWS.place = async function(){
       }
       site.q = toNorm(q); schedule(); return;
     }
+    if (drag.kind === 'newbar'){ const s1 = snapCm(sInv(R.geo, pt), -1, drag.a); drag.b = s1.pt; drag.snapped = s1.px; schedule(); return; }
+    if (drag.kind === 'bend'){
+      const b = site.bars[customUI.sel]; if (!b) return; const other = drag.e ? b.a : b.b, s1 = snapCm(sInv(R.geo, pt), customUI.sel, other);
+      if (drag.e) b.b = s1.pt; else b.a = s1.pt; drag.snapped = s1.px; drag.moved = true; schedule(); return;
+    }
+    if (drag.kind === 'barmove'){
+      const b = site.bars[drag.i], c1 = sInv(R.geo, pt), dx = c1[0] - drag.start[0], dy = c1[1] - drag.start[1];
+      if (!drag.moved && Math.hypot(dx, dy)*R.geo.pxPerCm < 4*S) return;
+      b.a = [drag.a0[0] + dx, drag.a0[1] + dy]; b.b = [drag.b0[0] + dx, drag.b0[1] + dy]; drag.moved = true; schedule(); return;
+    }
     if (drag.kind === 'arm'){
       const g = R.geo; if (!g) return; const right = g.side === 'right', x = g.xAlong(pt, right ? g.c.w : 0);
       site.arm = Math.round(clamp(right ? x - g.c.w - g.f : -g.f - x, 5, 300));
@@ -3704,6 +4007,15 @@ VIEWS.place = async function(){
       const q = quadPx(site.q, W, H), k = (c.w * dist(d.a, d.b) / cm) / widthOf(q);
       site.q = toNorm(scaleAbout(q, centroid(q), k)); touch(); schedule(); toast('Insegna portata alla misura reale: ' + num(c.w) + ' cm di base.');
       return;
+    }
+    if (d.kind === 'newbar'){
+      if (!d.b || Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) < 4){ schedule(); if (!d.b) toast('Trascina il dito da un punto all\'altro per disegnare il pezzo.'); return; }
+      customPush(site); site.bars.push({ kind: customUI.tool, a: d.a.map(v => Math.round(v*10)/10), b: d.b.map(v => Math.round(v*10)/10), t: kindOf(customUI.tool).t });
+      customUI.sel = site.bars.length - 1; touch(); customRefresh(); return;
+    }
+    if (d.kind === 'bend' || d.kind === 'barmove'){
+      if (!d.moved) customUI.undo.pop();   // solo un tocco: niente da annullare
+      touch(); if (d.selChange || d.moved) customRefresh(); else schedule(); return;
     }
     if (d.kind === 'draw'){
       if (!site.q){ const w = W*.3; site.q = toNorm(rectQ(d.a[0] - w/2, d.a[1] - w/ratio/2, w)); }
@@ -3745,9 +4057,76 @@ VIEWS.place = async function(){
   // bandiera
   $$('#fside .seg-btn').forEach(b => b.onclick = () => { site.side = b.dataset.v; touch(); go('place', { keepScroll:true }); });
   const fa = $('#fl-arm'); if (fa) fa.oninput = () => { const v = numVal(fa, 5, 300); if (v != null){ site.arm = v; touch(); schedule(); } };
+  // struttura personalizzata
+  if (stId === 'custom'){
+    // attivando il disegno si torna alla foto, così si può disegnare subito
+    $$('#cu-tool .seg-btn').forEach(b => b.onclick = () => { customUI.tool = b.dataset.v; customUI.drawing = true; customUI.sel = -1; go('place'); });
+    $('#cu-draw').onclick = () => { customUI.drawing = !customUI.drawing; if (customUI.drawing){ customUI.sel = -1; go('place'); } else customRefresh(); };
+    $('#cu-undo').onclick = () => { if (!customUI.undo.length) return; site.bars = JSON.parse(customUI.undo.pop()); customUI.sel = -1; touch(); customRefresh(); };
+    const cl = $('#cu-clear'); if (cl) cl.onclick = () => { customPush(site); site.bars = []; customUI.sel = -1; customUI.drawing = true; touch(); customRefresh(); toast('Struttura cancellata: puoi annullare.'); };
+    $('#cu-straight').onchange = e => { customUI.straight = e.target.checked; };
+    $$('[data-tpl]').forEach(b => b.onclick = () => { customPush(site); site.bars = customTemplate(b.dataset.tpl, p); customUI.sel = -1; customUI.drawing = false; touch(); go('place'); toast('Modello inserito: ora puoi modificarlo pezzo per pezzo.'); });
+    const sb = customUI.sel >= 0 && site.bars[customUI.sel];
+    if (sb){
+      $$('#cu-kind .pill').forEach(b => b.onclick = () => { customPush(site); sb.kind = b.dataset.v; sb.t = kindOf(sb.kind).t; touch(); customRefresh(); });
+      const ct = $('#cu-t'); let pushed = false; ct.oninput = () => { if (!pushed){ customPush(site); pushed = true; } sb.t = +ct.value; $('#cu-t-o').textContent = num(sb.t) + ' cm'; touch(); schedule(); };
+      $('#cu-mirror').onclick = () => { customPush(site); const w = c.w; site.bars.push({ kind: sb.kind, t: sb.t, a: [w - sb.a[0], sb.a[1]], b: [w - sb.b[0], sb.b[1]] }); customUI.sel = site.bars.length - 1; touch(); customRefresh(); toast('Copia a specchio aggiunta.'); };
+      $('#cu-desel').onclick = () => { customUI.sel = -1; customRefresh(); };
+      $('#cu-del').onclick = () => { customPush(site); site.bars.splice(customUI.sel, 1); customUI.sel = -1; touch(); customRefresh(); };
+    }
+  }
+  $('#to-back').onclick = async () => { await saveNow(); go('backside', { back:'place' }); };
   $('#next').onclick = async () => { if (!site.q) return; if (!site.structure) site.structure = 'none'; await saveNow(); go('render'); };
 }
 
+
+/* ---------- Vista da dietro e scheda di installazione ---------- */
+// Disegno tecnico (senza la foto): lo schermo visto da dietro, con la struttura, le misure e i pezzi da preparare.
+// Serve per far vedere al cliente come viene montato e per passarlo all'installatore.
+VIEWS.backside = async function(){
+  const p = project; if (!p || !p.site){ go('home'); return; }
+  await loadAssets(p);
+  const side = params.side || 'back', M = structureModel(p), list = partsList(M), stDef = STRUCTURES.find(x => x.id === M.st) || STRUCTURES[0];
+  const c = panelCm(p), res = ledRes(p);
+  app.innerHTML = topbar('Vista da dietro') +
+    heading(side === 'back' ? 'Da dietro.' : 'Di fronte.', 'Come viene montato lo schermo: ' + esc(stDef.label.toLowerCase()) + ', ' + esc(panelLabel(p)) + '.') +
+    '<div class="seg" id="bs-side"><button type="button" class="seg-btn' + (side === 'back' ? ' selected' : '') + '" data-v="back">Da dietro</button><button type="button" class="seg-btn' + (side === 'front' ? ' selected' : '') + '" data-v="front">Di fronte</button></div>' +
+    '<div class="sheet-wrap"><canvas id="bs-cv" class="sheet-cv"></canvas></div>' +
+    '<div class="group"><div class="group-title">Pezzi della struttura</div>' +
+      (list.length ? '<ul class="parts">' + list.map(x => '<li>' + esc(partLine(x)) + '</li>').join('') + '</ul>' : '<p class="help" style="margin:0">Nessun pezzo: ' + (M.st === 'custom' ? 'disegna la struttura nella schermata "Dove va l\'insegna".' : 'il pannello si appoggia direttamente.') + '</p>') +
+      '<p class="help" style="margin:0">' + esc(M.notes.join(' ')) + ' Schermo ' + esc(panelLabel(p)) + ', ' + res.w + ' × ' + res.h + ' pixel LED.</p>' +
+      '<p class="hint small" style="margin:0">Misure indicative per la dimostrazione al cliente: prima dell\'installazione le verifica il tecnico.</p></div>' +
+    '<div class="btn-row"><button class="btn btn-secondary btn-sm" id="bs-edit">Modifica la struttura</button></div>' +
+    '<div class="actionbar"><button class="btn btn-primary" id="bs-dl">' + IC.download + 'Scarica la scheda (immagine)</button></div>';
+  const wrap = $('.sheet-wrap'), cv = $('#bs-cv'), cssW = wrap.clientWidth, cssH = Math.round(cssW*(app.classList.contains('two') ? .75 : 1.05)), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px'; cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
+  drawSheet(cv.getContext('2d'), cv.width, cv.height, p, M, side === 'back');
+  bindTopbar(() => go(params.back || 'render'));
+  $$('#bs-side .seg-btn').forEach(b => b.onclick = () => go('backside', { back: params.back, side: b.dataset.v }));
+  $('#bs-edit').onclick = () => go('place');
+  $('#bs-dl').onclick = async () => {
+    // scheda completa: titolo, disegno da dietro e di fronte affiancati, distinta dei pezzi
+    const W = 2000, top = 150, rows = Math.max(1, list.length), bottom = 170 + rows*44, H = 1100 + top + bottom, out = makeCanvas(W, H), x = out.getContext('2d');
+    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, W, H);
+    const half = makeCanvas(W/2 - 30, 1100);
+    [['back', 'Vista da dietro', 20], ['front', 'Vista di fronte', W/2 + 10]].forEach(v => { const hx = half.getContext('2d'); hx.clearRect(0, 0, half.width, half.height); drawSheet(hx, half.width, half.height, p, M, v[0] === 'back'); x.drawImage(half, v[2], top); x.fillStyle = '#1D1D1F'; x.font = '600 30px -apple-system,Segoe UI,Roboto,sans-serif'; x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.fillText(v[1], v[2] + 10, top - 14); });
+    x.fillStyle = '#1D1D1F'; x.font = '700 46px -apple-system,Segoe UI,Roboto,sans-serif'; x.fillText('Scheda di installazione' + (p.bizName ? ' · ' + p.bizName : ''), 20, 64);
+    x.fillStyle = '#6E6E73'; x.font = '400 28px -apple-system,Segoe UI,Roboto,sans-serif'; x.fillText(stDef.label + ' · schermo ' + panelLabel(p) + ' · ' + res.w + ' × ' + res.h + ' pixel LED · ' + new Date().toLocaleDateString('it-IT'), 20, 104);
+    let y = top + 1100 + 60; x.fillStyle = '#1D1D1F'; x.font = '600 32px -apple-system,Segoe UI,Roboto,sans-serif'; x.fillText('Pezzi della struttura', 20, y);
+    x.font = '400 28px -apple-system,Segoe UI,Roboto,sans-serif'; y += 44;
+    (list.length ? list.map(partLine) : ['Nessun pezzo']).forEach(t => { x.fillText('• ' + t, 30, y); y += 44; });
+    x.fillStyle = '#6E6E73'; x.font = '400 24px -apple-system,Segoe UI,Roboto,sans-serif'; x.fillText('Misure indicative: da verificare con il tecnico prima dell\'installazione.', 20, H - 30);
+    x.fillStyle = '#1D1D1F'; x.font = '700 28px -apple-system,Segoe UI,Roboto,sans-serif'; x.textAlign = 'right'; x.fillText('HORIZON RENDER', W - 20, H - 30);
+    out.toBlob(async blob => {
+      if (!blob){ toast('Non riesco a creare l\'immagine.'); return; }
+      const name = 'scheda-installazione-' + (p.bizName || 'insegna').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
+      const file = typeof File === 'function' ? new File([blob], name, { type:'image/png' }) : null;
+      if (file && navigator.canShare && (() => { try { return navigator.canShare({ files:[file] }); } catch (e){ return false; } })()){ try { await navigator.share({ files:[file], title: name }); return; } catch (e){ if (e && e.name === 'AbortError') return; } }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      toast('Scheda scaricata');
+    }, 'image/png');
+  };
+};
 /* ---------- Passo 6: il render ---------- */
 VIEWS.render = async function(){
   const p = project, site = p.site;
@@ -3766,6 +4145,7 @@ VIEWS.render = async function(){
     '<div class="setting"><span>Qualità video</span><div class="seg" id="qual">' + QUALITIES.map(q => { const d = dimsOf(q); return '<button type="button" class="seg-btn' + (p.quality === q.id ? ' selected' : '') + '" data-v="' + q.id + '">' + q.label + '<small>' + d.W + ' × ' + d.H + '</small></button>'; }).join('') + '</div></div>' +
     '<p class="hint small">MP4 da ' + p.duration + ' secondi, senza audio, nel formato della foto. Si apre su qualsiasi telefono.</p>' +
     '<div class="settings-list"><button type="button" id="to-place"><span>Sposta l\'insegna</span><span class="v">' + esc(((STRUCTURES.find(x => x.id === (structOf(site) || 'none')) || STRUCTURES[0]).label)) + IC.chev + '</span></button>' +
+      '<button type="button" id="to-back"><span>Vista da dietro e installazione</span><span class="v">Scheda' + IC.chev + '</span></button>' +
       '<button type="button" id="to-spot"><span>Modifica lo spot</span><span class="v">' + p.slides.length + ' ' + (p.slides.length === 1 ? 'contenuto' : 'contenuti') + IC.chev + '</span></button>' +
       '<button type="button" id="spot-dl"><span>Scarica solo lo spot</span><span class="v">' + signOf(p).w + ' × ' + signOf(p).h + IC.chev + '</span></button></div>' +
     '<div class="group"><div class="group-title">Prossimo passo: l\'offerta</div><p class="help" style="margin:0">Apri Horizon Offers con le misure di questa insegna (' + panelLabel(p) + ') e mostra al cliente i tre piani.</p>' + offersBtn(p, 'to-offers') + '</div>' +
@@ -3802,6 +4182,7 @@ VIEWS.render = async function(){
   $$('#qual .seg-btn').forEach(b => b.onclick = () => { p.quality = b.dataset.v; $$('#qual .seg-btn').forEach(x => x.classList.toggle('selected', x === b)); touch(); });
   $('#to-place').onclick = async () => { await saveNow(); go('place'); };
   $('#to-spot').onclick = async () => { await saveNow(); go(spotView()); };
+  $('#to-back').onclick = async () => { await saveNow(); go('backside', { back:'render' }); };
   $('#spot-dl').onclick = () => openExport();
   $('#export').onclick = () => runRenderExport();
 }

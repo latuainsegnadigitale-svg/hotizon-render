@@ -3,7 +3,10 @@ HORIZON RENDER — pubblicazione su Cloudflare
 A COSA SERVE
   Mostra al cliente la sua attività con l'insegna LED già montata e accesa, con lo spot che gira.
   Montaggi: solo pannello, totem autoportante, totem con pannello sotto (con il logo dell'attività),
-  bandiera a muro (staffe a sinistra o a destra, lunghezza regolabile), appeso con cavi.
+  bandiera a muro (staffe a sinistra o a destra, lunghezza regolabile), appeso con cavi,
+  struttura personalizzata (tubolari, cavi e piastre disegnati a mano sulla foto, anche obliqui).
+  Per ogni montaggio c'è la "Vista da dietro e scheda di installazione": retro dello schermo, struttura,
+  misure e pezzi da preparare, scaricabile come immagine da mandare al cliente o all'installatore.
   Logo dell'attività con colori automatici, caselle di testo, sfondo a tinta unita, marchio HORIZON RENDER
   obbligatorio, tasto "Passa a Horizon Offers" con le misure già inserite.
 
